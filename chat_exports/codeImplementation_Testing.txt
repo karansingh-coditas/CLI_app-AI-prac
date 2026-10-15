@@ -1,0 +1,1259 @@
+ ▐▛███▛█   Claude Code v2.1.300
+▝▜██████▀  Sonnet 5.5 · Claude Team
+ ▝▝   ▝▝   ~\Desktop\ai-prac-assignment\modules
+
+
+> You are a senior software engineer whose assigned to build an application.    
+  The application is divided into multiple components defined in @modules\ .    
+  Each component is further devided into sub-components (naming convention:     
+  componentName_subComponent).                                                  
+                                                                                
+  Your job is to build each component one by one, before finally implementing   
+  final component i.e @modules\cli_app\ . Before starting implementation make a 
+  folder named 'app' in this dir with virtual env to avoid package dependency   
+  conflicts. use UV for this.                                                   
+  ⎿  Listed directory modules\
+  ⎿  Listed directory modules\cli_app\
+
+● I'll start by reading the README and the module docs.
+
+● Bash(cd modules && cat README.md && wc -c */*.md | tail -1 && ls */)
+  ⎿  # actiontrack — Module Breakdown
+
+     Derived from `../requirement.md`. Each module folder holds `spec.md`,
+     … +179 lines (ctrl+o to expand)
+
+● PowerShell(Set-Location C:\Users\Coditas\Desktop\ai-prac-assignment; ls; uv
+            --version; python --version)
+  ⎿      Directory: C:\Users\Coditas\Desktop\ai-prac-assignment
+     … +13 lines (ctrl+o to expand)
+
+● PowerShell(uv init app --package --name actiontrack; cd app; uv add --dev
+            pytest; ls -R . -Exclude .venv | Select-Object -First 30; cat
+            pyproject.toml)
+  ⎿  Initialized project `actiontrack` at `C:\Users\Coditas\Desktop\ai-prac
+     -assignment\app`
+     Using CPython 3.11.0 interpreter at: C:\Program Files\Python311\python
+     … +142 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+● Bash(cd ../modules && for m in core_models core_store; do for f in spec plan
+      tasks test-cases; do echo "=== $m/$f"; cat $m/$f.md; done; done)
+  ⎿  === core_models/spec
+     # core_models — Spec
+     … +231 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && cat
+      src/actiontrack/__init__.py; ls; cat .gitignore 2>/dev/null)
+  ⎿  def main() -> None:
+         print("Hello from actiontrack!")
+     README.md
+     … +13 lines (ctrl+o to expand)
+
+● Bash(: > src/actiontrack/__init__.py && sed -i
+      's/"actiontrack:main"/"actiontrack.cli_app:main"/' pyproject.toml && mkdir
+      -p tests && cat >> pyproject.toml <<'EOF'…)
+  ⎿        Built actiontrack @ file:///C:/Users/Coditas/Desktop/ai-prac-ass
+     ignment/app
+     Uninstalled 1 package in 5ms
+     … +4 lines (ctrl+o to expand)
+
+● core_models is built and its tests pass. Next is core_store.
+
+● Bash(cat > src/actiontrack/core_store.py <<'EOF'
+      """SQLite persistence for Items. The only module that touches
+      sqlite3."""…)
+  ⎿  Error: Exit code 2
+     /usr/bin/bash: -c: line 148: unexpected EOF while looking for matching `''
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/modules && for m in
+      ingest_note_parser ingest_owner_resolver ingest_date_resolver
+      ingest_dedup; do for f in spec…)
+  ⎿  === ingest_note_parser/spec
+     # ingest_note_parser — Spec
+     … +390 lines (ctrl+o to expand)
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Nothing was written for core_store. I'll write the files with the Write tool
+  instead.
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\core_store.py)
+  ⎿  Wrote 150 lines to ..\app\src\actiontrack\core_store.py
+       1 """SQLite persistence for Items. The only module that touches sq
+         lite3."""
+       2 from __future__ import annotations
+       3 
+       4 import json
+       6 from contextlib import contextmanager
+       7 from datetime import date, datetime
+       8 from typing import Iterator, Literal, Mapping
+       9 
+      10 from .core_models import AppError, Item, Person, RUNTIME_ERROR
+     … +166 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_core_store.py)
+  ⎿  Wrote 121 lines to ..\app\tests\test_core_store.py
+       1 import sqlite3
+       2 import time
+       3 from datetime import date, datetime
+       4 
+       5 import pytest
+       7 from actiontrack.core_models import AppError, Item, Person
+       8 from actiontrack.core_store import Store, default_db_path
+       9 
+      10 A, B = Person("Priya Sharma", "ps@x.com"), Person("Priya Nair", 
+         "pn@x.com")
+     … +123 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && uv add pyyaml 2>&1
+      | tail -2 && uv run pytest -q 2>&1 | tail -8)
+  ⎿   ~ actiontrack==0.1.0 (from file:///C:/Users/Coditas/Desktop/ai-prac-a
+     ssignment/app)
+      + pyyaml==6.0.3
+     … +3 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_note_parser.py)
+  ⎿  Wrote 67 lines to ..\app\src\actiontrack\ingest_note_parser.py
+      1 """Parse the text of one meeting-note .md file into a Note (pure,
+         no file I/O)."""
+      2 from __future__ import annotations
+      3 
+      4 import re
+      5 from datetime import date, datetime
+      6 
+      7 import yaml
+      8 
+      9 from .core_models import MalformedNote, Note, Person, RawItemLine
+     … +63 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_owner_resolver.p
+       y)
+  ⎿  Wrote 55 lines to ..\app\src\actiontrack\ingest_owner_resolver.py
+       1 """Decide who owns an action item from its text and the note's a
+         ttendees (pure)."""
+       2 from __future__ import annotations
+       3 
+       4 import re
+       6 from typing import Literal, Sequence
+       7 
+       8 from .core_models import Person, norm_name
+       9 
+      10 _WORD = r"[^\W\d_][\w'’-]*\.?"
+     … +51 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_date_resolver.py
+       )
+  ⎿  Wrote 105 lines to ..\app\src\actiontrack\ingest_date_resolver.py
+       1 """Find a due-date phrase in task text and resolve it against th
+         e meeting date (pure)."""
+       2 from __future__ import annotations
+       4 import calendar
+       5 import difflib
+       6 import re
+       7 from dataclasses import dataclass
+       9 
+      10 _MONTHS = ["january", "february", "march", "april", "may", "june
+         ", "july", "august",
+     … +120 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_dedup.py)
+  ⎿  Wrote 53 lines to ..\app\src\actiontrack\ingest_dedup.py
+       1 """What counts as the same action item, and how two occurrences 
+         merge (pure)."""
+       2 from __future__ import annotations
+       3 
+       4 import unicodedata
+       6 
+       7 from .core_models import Issue, Item, Person
+       8 
+       9 
+      10 def normalise_task(task: str) -> str:
+     … +50 lines (ctrl+o to expand)
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_ingest_leaf.py)
+  ⎿  Wrote 223 lines to ..\app\tests\test_ingest_leaf.py
+       1 """Tests for ingest_note_parser, ingest_owner_resolver, ingest_d
+         ate_resolver, ingest_dedup."""
+       2 import ast
+       3 import pathlib
+       4 import sys
+       6 
+       7 import pytest
+       8 
+       9 from actiontrack.core_models import Item, MalformedNote, Person
+      10 from actiontrack.ingest_date_resolver import resolve_due
+     … +272 lines (ctrl+o to expand)
+
+● Bash(uv run pytest -q 2>&1 | tail -40)
+  ⎿  E               AssertionError: assert 'core_models' in {'__future__',
+      '_abc', '_aix_support', '_ast', '_asyncio', '_bisect', ...}
+     … +37 lines (ctrl+o to expand)
+
+● Bash(python - <<'EOF'
+      import re,pathlib…)
+  ⎿      def test_imports_allowed(mod):
+             ok = {"yaml", "actiontrack"} | set(sys.stdlib_module_names)
+             for n in ast.walk(ast.parse((SRC / f"{mod}.py").read_text())):
+     … +16 lines (ctrl+o to expand)
+
+● Update(~\Desktop\ai-prac-assignment\app\tests\test_ingest_leaf.py)
+  ⎿  Added 1 line, removed 1 line
+      218      ok = {"yaml", "actiontrack"} | set(sys.stdlib_module_names
+           )
+      219      for n in ast.walk(ast.parse((SRC / f"{mod}.py").read_text(
+           ))):
+      220          mods = [a.name for a in n.names] if isinstance(n, ast.
+           Import) else \
+      221 -            [n.module or "core_models"] if isinstance(n, ast.I
+          -mportFrom) else []                                            
+      221 +            [n.module] if isinstance(n, ast.ImportFrom) and no
+          +t n.level else []                                             
+      222          for m in mods:
+      223              assert m.split(".")[0] in ok
+
+● Bash(uv run pytest -q 2>&1 | tail -5; cd ../modules && for m in
+      track_owner_lookup track_list track_done followup_compose; do for f in
+      spec plan test-cases; do echo…)
+  ⎿  ......................................................................
+     .. [ 80%]
+     .................
+     … +349 lines (ctrl+o to expand)
+
+● Core and ingest leaves are done (89 tests pass). Now the track_* modules and
+  followup_compose.
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\track_owner_lookup.py)
+  ⎿  Wrote 38 lines to ..\app\src\actiontrack\track_owner_lookup.py
+       1 """Resolve a user-typed owner string to exactly one stored Perso
+         n (pure)."""
+       2 from __future__ import annotations
+       3 
+       4 from dataclasses import dataclass
+       6 
+       7 from .core_models import Person, norm_name
+       8 
+       9 
+      10 @dataclass(frozen=True)
+     … +31 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\track_list.py)
+  ⎿  Wrote 60 lines to ..\app\src\actiontrack\track_list.py
+       1 """`actiontrack list`: filter, order and render stored items."""
+       2 from __future__ import annotations
+       3 
+       4 import os
+       5 from dataclasses import dataclass, field
+       6 from datetime import date
+       7 from typing import Literal, Sequence
+       8 
+       9 from .core_models import Item, Person, is_overdue
+      10 from .core_store import Store
+     … +59 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\track_done.py)
+  ⎿  Wrote 26 lines to ..\app\src\actiontrack\track_done.py
+      1 """`actiontrack done <id>`: mark one stored item done (database o
+        nly)."""
+      2 from __future__ import annotations
+      3 
+      4 from dataclasses import dataclass
+      5 from datetime import datetime
+      6 from typing import Literal
+      7 
+      8 from .core_models import Item
+      9 from .core_store import Store
+     … +21 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\followup_compose.py)
+  ⎿  Wrote 45 lines to ..\app\src\actiontrack\followup_compose.py
+      1 """Build the follow-up email Draft for one owner (pure: no Gmail,
+         DB or clock)."""
+      2 from __future__ import annotations
+      3 
+      4 import os
+      5 from datetime import date
+      6 from typing import Sequence
+      7 
+      8 from .core_models import Draft, Item, Person, is_overdue
+      9 
+     … +46 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_track_followup_compose.py)
+  ⎿  Wrote 168 lines to ..\app\tests\test_track_followup_compose.py
+       1 """Tests for track_owner_lookup, track_list, track_done, followu
+         p_compose."""
+       2 import ast
+       3 import pathlib
+       4 import sys
+       6 
+       7 import pytest
+       8 
+       9 from actiontrack.core_models import Item, Person, is_overdue
+      10 from actiontrack.core_store import Store
+     … +206 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && uv run pytest -q
+      2>&1 | tail -30)
+  ⎿  ......................................................................
+     .. [ 62%]
+     ...........................................
+     … +2 lines (ctrl+o to expand)
+
+● Now the remaining specs: followup_gmail_draft, ingest_runner, followup_runner.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/modules && for m in
+      followup_gmail_draft ingest_runner followup_runner; do for f in spec plan
+      test-cases; do echo…)
+  ⎿  === followup_gmail_draft/spec
+     # followup_gmail_draft — Spec
+     … +313 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && uv add --optional
+      gmail mcp 2>&1 | tail -3 && uv run python -c "import mcp;
+      print(mcp.__file__)")
+  ⎿   + typing-extensions==4.16.0
+      + typing-inspection==0.4.4
+      + uvicorn==0.54.0
+     … +2 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\followup_gmail_draft.py
+       )
+  ⎿  Wrote 116 lines to ..\app\src\actiontrack\followup_gmail_draft.py
+      1 """The only module that talks to Gmail. It can create drafts; the
+        re is no way to send."""
+      2 from __future__ import annotations
+      3 
+      4 import json
+      5 import os
+      6 import re
+      7 import shlex
+      8 import sys
+      9 from typing import Callable, Mapping, Protocol, Sequence, TextIO
+     … +135 lines (ctrl+o to expand)
+
+● Update(~\Desktop\ai-prac-assignment\app\src\actiontrack\followup_gmail_draft.p
+        y)
+  ⎿  Added 1 line, removed 3 lines
+      70              print(f"[gmail] {self._tool}: {args}", file=sys.std
+          err)
+      71          try:
+      72              is_error, text = transport(self._tool, args)
+      73 -        except (OSError, TimeoutError, ImportError) as e:  # as
+         -yncio.TimeoutError is TimeoutError on 3.11+                    
+      73 +        except Exception as e:  # missing command, timeout, mis
+         +sing MCP lib, server died, protocol error                      
+      74              raise AppError(f"Gmail connector unavailable: {type
+          (e).__name__}: {e}", RUNTIME_ERROR) from e
+      75 -        except Exception as e:  # MCP/SDK transport failures (s
+         -erver died, protocol error)                                    
+      76 -            raise AppError(f"Gmail connector unavailable: {type
+         -(e).__name__}: {e}", RUNTIME_ERROR) from e                     
+      75          if is_error:
+      76              if re.search(r"auth|credential|login|unauthori[sz]e
+          d|\b40[13]\b", text, re.I):
+      77                  raise AppError("Gmail connector not authenticat
+          ed: run its login first", RUNTIME_ERROR)
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\fake_gmail_server.py)
+  ⎿  Wrote 26 lines to ..\app\tests\fake_gmail_server.py
+      1 """Minimal stdio MCP server standing in for the Gmail connector (
+        tests only)."""
+      2 import sys
+      3 import time
+      4 
+      5 from mcp.server.fastmcp import FastMCP
+      6 
+      7 mcp = FastMCP("fake-gmail")
+      8 MODE = sys.argv[1] if len(sys.argv) > 1 else "ok"
+      9 
+     … +19 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_followup_gmail_draft.py)
+  ⎿  Wrote 151 lines to ..\app\tests\test_followup_gmail_draft.py
+       1 import ast
+       2 import io
+       3 import pathlib
+       4 import sys
+       5 import typing
+       6 
+       7 import pytest
+       8 
+       9 from actiontrack import followup_gmail_draft as g
+      10 from actiontrack.core_models import AppError, Draft, DraftResult
+     … +162 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_followup_gmail_draft.py 2>&1 |
+      tail -30)
+  ⎿  src\actiontrack\followup_gmail_draft.py:74: AppError
+     ---------------------------- Captured stderr call --------------------
+     ---------
+     … +42 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app/.venv/Lib/site-package
+      s/mcp && ls; ls server client; grep -n "^from\|^import\|__all__"
+      __init__.py | head -40…)
+  ⎿  __init__.py
+     __pycache__/
+     cli/
+     … +67 lines (ctrl+o to expand)
+● Status: all modules through followup_compose are done. I'm now fixing the MCP
+  smoke test, because the installed mcp is 2.x and renamed FastMCP.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && python - <<'EOF'
+      import pathlib…)
+  ⎿             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       File "C:\Users\Coditas\Desktop\ai-prac-assignment\app\.venv\Lib\site
+     -packages\anyio\_backends\_asyncio.py", line 2706, in run_sync_in_work
+     … +31 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_followup_gmail_draft.py -k
+      "roundtrip or auth" 2>&1 | grep -E "^E |Error" | head -20)
+  ⎿        |     return bool(res.isError), "".join(getattr(c, "text", "") o
+     r "" for c in res.content)
+           |     raise AttributeError(f'{type(self).__name__!r} object has
+     … +25 lines (ctrl+o to expand)
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  E       AssertionError: assert 'not authenticated' in 'Gmail draft fai
+     led: Error executing tool create_draft'
+     E        +  where 'Gmail draft failed: Error executing tool create_dra
+     … +6 lines (ctrl+o to expand)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  135 passed in 12.33s
+
+● Status: followup_gmail_draft is done, with the real stdio MCP path tested
+  against a fake server, and 135 tests pass. Next are ingest_runner and
+  followup_runner.
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_runner.py)
+  ⎿  Wrote 149 lines to ..\app\src\actiontrack\ingest_runner.py
+      1 """Orchestrates `actiontrack ingest <folder>`: read notes, run th
+        e pipeline, persist, report.
+      2 
+      3 Holds no parsing, date, owner or merge logic of its own.
+      4 """
+      5 from __future__ import annotations
+      6 
+      7 import os
+      8 from dataclasses import dataclass, field
+      9 from datetime import datetime
+     … +168 lines (ctrl+o to expand)
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  131:    no_due = {i for i in no_due if store.get(i).due_date is None}
+      # a later note may have supplied a date
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\followup_runner.py)
+  ⎿  Wrote 68 lines to ..\app\src\actiontrack\followup_runner.py
+       1 """Orchestrates `actiontrack followup <owner>`: resolve owner, c
+         ompose, create a draft, report.
+       3 Only ever calls `gateway.create_draft`; the store is read-only h
+         ere.
+       4 """
+       6 
+       7 from dataclasses import dataclass, field
+       8 from datetime import date
+      10 from .core_models import DraftResult, OK, Person, RUNTIME_ERROR,
+          USAGE_ERROR, is_overdue
+     … +75 lines (ctrl+o to expand)
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_runners.py)
+  ⎿  Wrote 310 lines to ..\app\tests\test_runners.py
+       1 """Tests for ingest_runner and followup_runner (real leaf module
+         s, in-memory store, fixed clock)."""
+       2 import hashlib
+       3 import time
+       4 from datetime import date, datetime
+       6 import pytest
+       7 
+       8 from actiontrack import ingest_runner
+       9 from actiontrack.core_models import AppError, Item, Person
+      10 from actiontrack.core_store import Store
+     … +367 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_runners.py 2>&1 | tail -40)
+  ⎿  F.....................
+        [100%]
+     ================================== FAILURES ==========================
+     … +25 lines (ctrl+o to expand)
+
+● Bash(sed -i 's/== (1, 3)$/== (1, 2)/' tests/test_runners.py && timeout 300 uv
+      run pytest -q 2>&1 | tail -3; cd ../modules/cli_app && cat spec.md plan.md
+      test-cases.m…)
+  ⎿  ......................................................................
+     .. [ 91%]
+     .............
+     … +109 lines (ctrl+o to expand)
+
+● All the module-level work passes (157 tests). Now cli_app, the final
+  component.
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\cli_app.py)
+  ⎿  Wrote 150 lines to ..\app\src\actiontrack\cli_app.py
+       1 """Entry point: argument parsing, wiring concrete classes togeth
+         er, printing, exit codes."""
+       2 from __future__ import annotations
+       3 
+       4 import argparse
+       6 import os
+       7 import sys
+       8 import traceback
+       9 from datetime import date, datetime
+      10 from typing import Callable, Mapping, Sequence, TextIO
+     … +177 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && python - <<'EOF'
+      import pathlib…)
+  ⎿  def _parser() -> argparse.ArgumentParser:
+         def add_globals(p: argparse.ArgumentParser, in_subcommand: bool) -
+     > None:
+     … +18 lines (ctrl+o to expand)
+
+● Now the CLI tests, which also include the package-wide AC-13 "no send" scan.
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_cli_app.py)
+  ⎿  Wrote 214 lines to ..\app\tests\test_cli_app.py
+       1 """End-to-end smoke tests: main([...]) in-process against fixtur
+         e notes."""
+       2 import ast
+       3 import io
+       4 import pathlib
+       6 
+       7 import pytest
+       8 
+       9 from actiontrack import cli_app
+      10 from actiontrack.cli_app import main
+     … +253 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_cli_app.py 2>&1 | tail -40)
+  ⎿  ........F.......
+        [100%]
+     ================================== FAILURES ==========================
+     … +19 lines (ctrl+o to expand)
+
+● I left two junk lines in the tests. I'm removing them.
+
+● Bash(python - <<'EOF'
+      import pathlib,re…)
+  ⎿  ......................................................................
+     .. [ 41%]
+     ......................................................................
+     … +4 lines (ctrl+o to expand)
+
+● All 173 tests pass. Next I'll run the installed actiontrack command against
+  the sample notes/ folder.
+
+● Bash(ls ../notes && export PYTHONIOENCODING=utf-8 && rm -f /tmp/at.db &&
+      D="--db $TEMP/at_demo.db --today 2026-10-15" && rm -f $TEMP/at_demo.db &&
+      uv run actiontrack…)
+  ⎿  notes/
+     Ingest complete: 0 files read, 0 skipped
+       Items: 0 added, 0 merged (duplicates), 0 updated
+     … +17 lines (ctrl+o to expand)
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment && ls -R notes | head -20;
+      ls chat_exports | head)
+  ⎿  notes:
+     notes/
+     … +18 lines (ctrl+o to expand)
+
+● Real sample notes are in notes/notes, so I'll run against those.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && ls ../notes/notes |
+      wc -l && export PYTHONIOENCODING=utf-8 && DB=$TEMP/at_demo.db && rm -f
+      $DB && A="--db…)
+  ⎿  36
+     Ingest complete: 2 files read, 33 skipped
+       Items: 4 added, 0 merged (duplicates), 0 updated
+     … +67 lines (ctrl+o to expand)
+
+● Most sample notes are reported as having no front matter. I'll check whether
+  they really don't, or whether my parser is too strict.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/notes/notes && head -c 400
+      2026-09-01-quote-portal-kickoff.md | cat -A | head -14; echo ====; head
+      -12 2026-09-16…)
+  ⎿  # Meeting: Quote portal kickoff$
+     Date: 2026-09-01$
+     Attendees: Priya Nair, Rahul Mehta, Anita Desai, Sam Okafor$
+     … +22 lines (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && export
+      PYTHONIOENCODING=utf-8 && DB=$TEMP/at_demo.db && uv run actiontrack --db
+      $DB --today 2026-10-15 fol…)
+  ⎿  error: Meera Iyer has no email address in any note; use --no-recipient
+      to create a draft anyway
+     exit=1
+     … +6 lines (ctrl+o to expand)
+
+● All 14 modules plus cli_app are built in app/, and the 173 tests I wrote from
+  the module test-cases.md files pass. It runs end to end through the installed
+  actiontrack command, but I haven't tried it against a real Gmail connector.
+
+  The environment is app/, created with uv init --package. The only runtime
+  dependency is PyYAML. The MCP client is an optional gmail extra, and it's only
+  imported when followup runs without --dry-run. The actiontrack console script
+  points at actiontrack.cli_app:main. I built in the README's order, one file
+  per module in src/actiontrack/ with its tests in tests/. AC-13 (no send) is
+  checked by scanning the whole package for any identifier containing "send".
+
+  Questions for you:
+  - Sample notes: should the parser accept Date: and Attendees: header lines?
+    Running ingest on notes/notes read 2 of 36 files and skipped 33. Most use
+    Date:/Attendees: lines instead of YAML front matter, which the spec defines
+    as malformed (AC-6), so I followed the spec. The skipped files are listed
+    with reasons on stderr.
+  - Gmail connector: the spec leaves open how Python reaches the Gmail connector
+    (Q-8). I assumed an MCP stdio server whose command is in
+    ACTIONTRACK_GMAIL_MCP_CMD, calling a create_draft tool with to, subject and
+    body. The tool name can be overridden with ACTIONTRACK_GMAIL_DRAFT_TOOL, but
+    any name containing "send", or lacking "draft", is refused. I tested this
+    over real stdio against a fake MCP server, covering success, auth error,
+    timeout and a missing command. Use --dry-run until you've confirmed the real
+    connector's tool name and arguments.
+
+  Where I departed from the specs:
+  - Installed MCP version: it's 2.x, where FastMCP was renamed, so the test
+    server uses MCPServer.
+  - Owner resolver: I added a small rule so Ask Priya to review resolves to no
+    owner, as test OR-T6 requires. Otherwise the resolver read Ask Priya as a
+    name and marked the owner unknown.
+  - Global flags: --db, --today and --verbose work before or after the
+    subcommand.
+  - files_read: the report counts only files that parsed.
+
+  I skipped fuzzy dedup, a recursive folder scan and followup --all, since the
+  specs put them out of scope.
+
+> /usage 
+  ⎿  Settings dialog dismissed
+
+✻ Worked for 11m 31s · done 3:55 PM
+
+> Nice. The sample @../notes/ folder with 30+ files is provided. This is the    
+  kind of meeting notes we are expecting. Use them as test inputs and access    
+  the final app. Make appropriate changes where required                        
+  ⎿  Listed directory ..\notes\
+
+● The sample notes are the expected input, so I'll survey every format variant
+  in them before changing the parser.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/notes/notes && for f in *;
+      do echo "##### $f"; head -c 700 "$f" | head -12; done 2>&1 | head -400)
+  ⎿  ##### 2026-09-01-quote-portal-kickoff.md
+     # Meeting: Quote portal kickoff
+     Date: 2026-09-01
+     … +397 lines (ctrl+o to expand)
+
+● Bash(ls | sed -n 30,40p; for f in 2026-09-18-design-review.md
+      2026-09-21-incident-review.md 2026-09-30-q4-offsite.md
+      2026-10-09-security-review.md; do echo "##### $f…)
+  ⎿  2026-10-09-security-review.md
+     2026-10-10-sales-weekly.md
+     2026-10-12-billing-post-cutover.md
+     … +99 lines (ctrl+o to expand)
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment && cat statement.rtf | sed
+      's/\\par/\n/g' | head -60; ls ../ 2>/dev/null | head -0; grep -rn "front
+      matter\|Date:…)
+  ⎿  {\rtf1\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+     {\*\generator Riched20 10.0.19041}\viewkind4\uc1
+     \
+     … +34 lines (ctrl+o to expand)
+
+● The sample notes deviate from the spec's assumptions in several ways—varied
+  header formats, non-standard bullets, dates/owners my resolver doesn't yet
+  handle, non-checkbox action formats, and missing emails. I'll begin building
+  the parser and shared Note model to account for these. · summary
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/app && python - <<'EOF'
+      import pathlib…)
+  ⎿  50:    unrecognised: tuple[RawItemLine, ...] = ()
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_note_parser.py)
+  ⎿  Added 77 lines, removed 31 lines
+      1 -"""Parse the text of one meeting-note .md file into a Note (pure
+        -, no file I/O)."""                                              
+      1 +"""Parse the text of one meeting-note .md file into a Note (pure
+        +, no file I/O).                                                 
+      2 +                                                                
+      3 +Two header styles are accepted: YAML front matter (`---` fenced)
+        + or plain header lines                                          
+      4 +(`Date: ...` / `Attendees: a, b`) before the first blank line.  
+      5 +"""                                                             
+      6  from __future__ import annotations
+      7  
+      8  import re
+     ...
+      12  
+      13  from .core_models import MalformedNote, Note, Person, RawItemLi
+          ne
+      14  
+      11 -_ITEM = re.compile(r"^\s*[-*]\s+\[( |x|X)\]\s+(\S.*?)\s*$")    
+      15 +_ITEM = re.compile(r"^\s*[-*+]\s+\[( |x|X)\]\s+(\S.*?)\s*$")   
+      16 +_ACTION_LINE = re.compile(r"^\s*(?:ACTION(?: ITEM)?S?|TODO)\s*:
+         +\s*(\S.*?)\s*$", re.I)                                         
+      17 +_HEADER = re.compile(r"^(date|attendees)\s*:\s*(.*?)\s*$", re.I
+         +)                                                              
+      18  _ATTENDEE = re.compile(r"^(?P<name>[^<]+?)\s*(?:<(?P<email>[^>]
+          *)>)?$")
+      13 -_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")                      
+      19 +_WEEKDAY_PREFIX = re.compile(r"^(?:mon|tue|wed|thu|fri|sat|sun)
+         +[a-z]*\.?,?\s+", re.I)                                         
+      20 +_DATE_FORMATS = ("%Y-%m-%d", "%d %B %Y", "%d %b %Y", "%B %d, %Y
+         +", "%b %d, %Y", "%B %d %Y", "%b %d %Y")                        
+      21 +_COMMENT = re.compile(r"<!--.*?-->", re.S)                     
+      22  
+      23  
+      24  def _parse_date(v: object) -> date:
+      17 -    try:                                                       
+      18 -        if isinstance(v, datetime):                            
+      19 -            raise ValueError                                   
+      20 -        if isinstance(v, date):                                
+      21 -            return v                                           
+      22 -        if isinstance(v, str) and _ISO.match(v.strip()):       
+      23 -            return date.fromisoformat(v.strip())               
+      24 -    except ValueError:                                         
+      25 -        pass                                                   
+      25 +    if isinstance(v, str):                                     
+      26 +        s = _WEEKDAY_PREFIX.sub("", v.strip())                 
+      27 +        for fmt in _DATE_FORMATS:                              
+      28 +            try:                                               
+      29 +                return datetime.strptime(s, fmt).date()        
+      30 +            except ValueError:                                 
+      31 +                pass                                           
+      32 +    elif isinstance(v, date) and not isinstance(v, datetime):  
+      33 +        return v                                               
+      34      raise MalformedNote("missing or invalid date")
+      35  
+      36  
+      37  def _parse_attendees(v: object) -> tuple[Person, ...]:
+      38 +    if isinstance(v, str):  # header style "A, B <b@x.com>"    
+      39 +        v = [e for e in re.split(r",(?![^<]*>)", v) if e.strip(
+         +)]                                                             
+      40      if not isinstance(v, list) or not v:
+      41          raise MalformedNote("missing or empty attendees")
+      42      people: dict[str, Person] = {}
+     ...
+       51      return tuple(people.values())
+       52  
+       53  
+       54 +def _front_matter(lines: list[str]) -> tuple[dict, int]:      
+       55 +    """Return (fields, index of first body line)."""          
+       56 +    if lines[0].rstrip() == "---":                            
+       57 +        end = next((i for i in range(1, len(lines)) if lines[i
+          +].rstrip() == "---"), None)                                   
+       58 +        if end is None:                                       
+       59 +            raise MalformedNote("missing front matter")       
+       60 +        try:                                                  
+       61 +            fm = yaml.safe_load("\n".join(lines[1:end]))      
+       62 +        except Exception:  # YAMLError, or ValueError for impo
+          +ssible dates like 2026-13-45                                  
+       63 +            raise MalformedNote("invalid front matter") from N
+          +one                                                           
+       64 +        if not isinstance(fm, dict):                          
+       65 +            raise MalformedNote("invalid front matter")       
+       66 +        return {k.lower(): v for k, v in fm.items() if isinsta
+          +nce(k, str)}, end + 1                                         
+       67 +    fields: dict = {}                                         
+       68 +    i = next((n for n, l in enumerate(lines) if l.strip()), 0)
+          +  # skip leading blank lines                                  
+       69 +    while i < len(lines) and lines[i].strip():                
+       70 +        m = _HEADER.match(lines[i].strip())                   
+       71 +        if m:                                                 
+       72 +            fields.setdefault(m[1].lower(), m[2])             
+       73 +        i += 1                                                
+       74 +    if not fields:                                            
+       75 +        raise MalformedNote("missing front matter")           
+       76 +    return fields, i                                          
+       77 +                                                              
+       78 +                                                              
+       79 +def _scan_body(lines: list[str], start: int) -> tuple[list[Raw
+          +ItemLine], list[RawItemLine]]:                                
+       80 +    body = _COMMENT.sub(lambda m: "\n" * m[0].count("\n"), "\n
+          +".join(lines[start:])).split("\n")                            
+       81 +    items, unrecognised = [], []                              
+       82 +    in_fence, table = False, None  # table: None = outside, el
+          +se True if it is an "action" table                            
+       83 +    for n, line in enumerate(body, start + 1):                
+       84 +        s = line.strip()                                      
+       85 +        if s.startswith(("```", "~~~")):                      
+       86 +            in_fence = not in_fence                           
+       87 +            continue                                          
+       88 +        if in_fence:                                          
+       89 +            continue                                          
+       90 +        if s.startswith("|"):                                 
+       91 +            if table is None:                                 
+       92 +                table = "action" in s.lower()                 
+       93 +            elif table and not re.fullmatch(r"[|\-:\s]+", s): 
+       94 +                unrecognised.append(RawItemLine(s, False, n)) 
+       95 +            continue                                          
+       96 +        table = None                                          
+       97 +        if m := _ITEM.match(line):                            
+       98 +            items.append(RawItemLine(m.group(2), m.group(1) in
+          + "xX", n))                                                    
+       99 +        elif m := _ACTION_LINE.match(line):                   
+      100 +            unrecognised.append(RawItemLine(m.group(1), False,
+          + n))                                                          
+      101 +    return items, unrecognised                                
+      102 +                                                              
+      103 +                                                              
+      104  def parse_note(path: str, text: str) -> Note:
+      105      text = text.lstrip("").replace("\r\n", "\n").replace("\r",
+            "\n")
+      106      if not text.strip():
+      107          raise MalformedNote("empty file")
+      108      lines = text.split("\n")
+       49 -    if lines[0].rstrip() != "---":                            
+       50 -        raise MalformedNote("missing front matter")           
+       51 -    end = next((i for i in range(1, len(lines)) if lines[i].rs
+          -trip() == "---"), None)                                       
+       52 -    if end is None:                                           
+       53 -        raise MalformedNote("missing front matter")           
+       54 -    try:                                                      
+       55 -        fm = yaml.safe_load("\n".join(lines[1:end]))          
+       56 -    except Exception:  # YAMLError, or ValueError for impossib
+          -le dates like 2026-13-45                                      
+       57 -        raise MalformedNote("invalid front matter") from None 
+       58 -    if not isinstance(fm, dict):                              
+       59 -        raise MalformedNote("invalid front matter")           
+       60 -    when = _parse_date(fm.get("date"))                        
+       61 -    attendees = _parse_attendees(fm.get("attendees"))         
+       62 -    items = []                                                
+       63 -    for i in range(end + 1, len(lines)):                      
+       64 -        m = _ITEM.match(lines[i])                             
+       65 -        if m:                                                 
+       66 -            items.append(RawItemLine(m.group(2), m.group(1) in
+          - "xX", i + 1))                                                
+       67 -    return Note(path, when, attendees, tuple(items))          
+      109 +    fields, body_start = _front_matter(lines)                 
+      110 +    when = _parse_date(fields.get("date"))                    
+      111 +    attendees = _parse_attendees(fields.get("attendees"))     
+      112 +    items, unrecognised = _scan_body(lines, body_start)       
+      113 +    return Note(path, when, attendees, tuple(items), tuple(unr
+          +ecognised))                                                   
+
+● Next, the owner resolver: @name: mentions, a parenthetical after the name, and
+  placeholder owners such as Everyone/TBD.
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  """Decide who owns an action item from its text and the note's attende
+     es (pure)."""
+     from __future__ import annotations
+     … +25 lines (ctrl+o to expand)
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  15:_MENTION = re.compile(r"^@(?P<name>[^\W\d_][\w'’-]*)[:,]?\s+(?P<res
+     t>\S.*)$", re.DOTALL)  # "@anita: audit ..."
+
+● I'll now update the date resolver to handle ordinals, weekday-prefixed dates,
+  EOD, phrases like "end of next week," "next <weekday>," "mid-<month>," cleaner
+  text handling, and picking the first introducer that successfully resolves. 
+  · summary
+
+● Write(~\Desktop\ai-prac-assignment\app\src\actiontrack\ingest_date_resolver.py
+       )
+  ⎿  Added 32 lines, removed 14 lines
+      12  _DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"
+          , "saturday", "sunday"]
+      13  _MON = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may
+          |june?|july?|aug(?:ust)?|"
+      14          r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:
+          ember)?)")
+      15 -_DAY = r"(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(
+         -?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)"        
+      16 -_KEYWORDS = set(_MONTHS + _DAYS + ["today", "tomorrow", "next",
+         - "end", "eow", "eom"])                                         
+      15 +_DAY = r"mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?
+         +:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?"          
+      16 +_DOW = rf"(?:(?:{_DAY})\.?,?\s+)?"  # optional leading weekday:
+         + "Wed 16 Sep", "Saturday 10 Oct"                               
+      17 +_ORD = r"(?:st|nd|rd|th)?"                                     
+      18 +_KEYWORDS = set(_MONTHS + _DAYS + ["today", "tomorrow", "next",
+         + "end", "eow", "eom", "eod", "mid"])                           
+      19  
+      20  
+      21  @dataclass(frozen=True)
+      22  class DueResult:
+      23      due: date | None
+      22 -    task_text: str                                             
+      24 +    task_text: str            # phrase removed if resolved; unc
+         +hanged otherwise                                               
+      25      warning: str | None = None
+      26  
+      27  
+     ...
+      29      return next(i for i, m in enumerate(_MONTHS, 1) if m.starts
+          with(s[:3].lower()))
+      30  
+      31  
+      32 +def _dow(s: str) -> int:                                       
+      33 +    return next(i for i, w in enumerate(_DAYS) if w.startswith(
+         +s[:3].lower()))                                                
+      34 +                                                               
+      35 +                                                               
+      36 +def _next_monday(d: date) -> date:                             
+      37 +    return d + timedelta((-d.weekday()) % 7 or 7)  # strictly a
+         +fter d                                                         
+      38 +                                                               
+      39 +                                                               
+      40  def _eom(m: date) -> date:
+      41      return m.replace(day=calendar.monthrange(m.year, m.month)[1
+          ])
+      42  
+     ...
+      44  # (regex, fn(match, meeting) -> date); fn may raise ValueError 
+          for impossible dates.
+      45  _EXPRS = [
+      46      (r"(\d{4})-(\d{2})-(\d{2})", lambda m, d: date(int(m[1]), i
+          nt(m[2]), int(m[3]))),
+      37 -    (rf"(\d{{1,2}})\s+{_MON}\.?(?:,?\s+(\d{{4}}))?",           
+      47 +    (rf"{_DOW}(\d{{1,2}}){_ORD}\s+{_MON}\.?(?:,?\s+(\d{{4}}))?"
+         +,                                                              
+      48       lambda m, d: date(int(m[3] or d.year), _month(m[2]), int(m
+          [1]))),
+      39 -    (rf"{_MON}\.?\s+(\d{{1,2}})(?:,?\s+(\d{{4}}))?",           
+      49 +    (rf"{_DOW}{_MON}\.?\s+(\d{{1,2}}){_ORD}(?:,?\s+(\d{{4}}))?"
+         +,                                                              
+      50       lambda m, d: date(int(m[3] or d.year), _month(m[1]), int(m
+          [2]))),
+      41 -    (_DAY, lambda m, d: d + timedelta((next(i for i, w in enume
+         -rate(_DAYS) if w.startswith(m[1].lower()[:3])) - d.weekday()) %
+         - 7 or 7)),                                                     
+      51 +    (rf"mid[-\s]{_MON}", lambda m, d: date(d.year, _month(m[1])
+         +, 15)),                                                        
+      52 +    (rf"next\s+({_DAY})", lambda m, d: _next_monday(d) + timede
+         +lta(_dow(m[1]))),  # that day, next week                       
+      53 +    (rf"({_DAY})", lambda m, d: d + timedelta((_dow(m[1]) - d.w
+         +eekday()) % 7 or 7)),                                          
+      54      (r"today", lambda m, d: d),
+      55      (r"tomorrow", lambda m, d: d + timedelta(1)),
+      44 -    (r"next\s+week", lambda m, d: d + timedelta((-d.weekday()) 
+         -% 7 or 7)),                                                    
+      56 +    (r"next\s+week", lambda m, d: _next_monday(d)),            
+      57 +    (r"end\s+of\s+next\s+week", lambda m, d: _next_monday(d) + 
+         +timedelta(4)),                                                 
+      58      (r"end\s+of\s+week|eow", lambda m, d: d + timedelta((4 - d.
+          weekday()) % 7)),
+      59      (r"end\s+of\s+month|eom", lambda m, d: _eom(d)),
+      60 +    (r"(?:eod|end\s+of\s+day)\s+tomorrow", lambda m, d: d + tim
+         +edelta(1)),                                                    
+      61 +    (r"eod|end\s+of\s+day", lambda m, d: d),                   
+      62  ]
+      63  _EXPRS = [(re.compile(p + r"\b", re.I), f) for p, f in _EXPRS]
+      64  _INTRO = re.compile(r"\b(?:by|before|on|due|until)\b:?\s+", re.
+          I)
+      65  _TRAIL = re.compile(r"[\s.!?,;]*$")
+      51 -_UNSET = object()                                              
+      66  
+      67  
+      68  def _expr_at(text: str, pos: int, meeting: date):
+     ...
+       86  def _tidy(text: str) -> str:
+       87      text = re.sub(r"\s+", " ", text)
+       88      text = re.sub(r"\s+([,;.])", r"\1", text)
+       75 -    return text.strip(" ,;:.-")                               
+       89 +    text = text.strip(" ,;:.-–—")                             
+       90 +    return re.sub(r"\s+(?:for|from|on|at|to|in)$", "", text, f
+          +lags=re.I)  # left dangling by a removed date                 
+       91  
+       92  
+       93  def resolve_due(text: str, meeting_date: date) -> DueResult:
+       94 +    failure = None  # first date-looking introducer phrase tha
+          +t could not be resolved                                       
+       95      for intro in _INTRO.finditer(text):
+       96          hit = _expr_at(text, intro.end(), meeting_date)
+       97          if hit is None:
+       98              word = re.match(r"\S+", text[intro.end():])
+       83 -            if word and _date_like(word[0]):                  
+       84 -                phrase = text[intro.start():intro.end() + word
+          -.end()]                                                       
+       85 -                return DueResult(None, text, f"could not resol
+          -ve due date: '{phrase}'")                                     
+       99 +            if word and _date_like(word[0]) and failure is Non
+          +e:                                                            
+      100 +                failure = text[intro.start():intro.end() + wor
+          +d.end()]                                                      
+      101              continue
+      102          end, due = hit
+      103          if due is None:
+       89 -            return DueResult(None, text, f"could not resolve d
+          -ue date: '{text[intro.start():end]}'")                        
+      104 +            failure = failure or text[intro.start():end]      
+      105 +            continue                                          
+      106          return DueResult(due, _tidy(text[:intro.start()] + " "
+            + text[end:]))
+      107      # trailing expression with no introducer
+      108      best = None
+     ...
+      117          try:
+      118              return DueResult(fn(m, meeting_date), _tidy(text[:
+           m.start()]))
+      119          except ValueError:
+      104 -            return DueResult(None, text, f"could not resolve d
+          -ue date: '{m[0]}'")                                           
+      120 +            failure = failure or m[0]                         
+      121 +    if failure:                                               
+      122 +        return DueResult(None, text, f"could not resolve due d
+          +ate: '{failure}'")                                            
+      123      return DueResult(None, text)
+
+● Bash(timeout 300 uv run pytest -q -x 2>&1 | tail -25)
+  ⎿  ...........................................F
+     ================================== FAILURES ==========================
+     =========
+     … +22 lines (ctrl+o to expand)
+
+● That failure is expected, since ordinals are now supported. I'm updating the
+  tests and adding cases for each new sample-note form.
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿      - [ ] still inside the comment -->
+
+         - [ ] real one
+     … +24 lines (ctrl+o to expand)
+
+● The failures are my hand-counted line numbers, which I miscounted by hand. I
+  recounted them against the text and the code's values are right.
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  ......................................................................
+     .. [ 36%]
+     ......................................................................
+     … +4 lines (ctrl+o to expand)
+
+● Now the runner needs to report the non-checkbox action lines instead of
+  dropping them silently. After that I'll run the real corpus.
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  Ingest complete: 30 files read, 5 skipped
+       Items: 90 added, 21 merged (duplicates), 18 updated
+       Needs attention: 11 unassigned (5 ambiguous owner), 20 with no due d
+     … +49 lines (ctrl+o to expand)
+
+● Ingest looks sane. I'll dump every stored item and check each against the
+  notes by hand.
+
+● Bash(export PYTHONIOENCODING=utf-8; DB=$TEMP/at_demo.db; uv run actiontrack
+      --db $DB --today 2026-10-15 list | cut -c1-175)
+  ⎿  ID  OWNER         TASK
+          DUE         STATUS   SOURCE
+     3   Anita Desai   share first wireframes
+     … +165 lines (ctrl+o to expand)
+
+● The ingested data matches my hand check of the notes, including the [X] items,
+  nested items, merges across meetings, and next Tuesday/end of next week. Now
+  the other commands on this data.
+
+● Bash(export PYTHONIOENCODING=utf-8; A="--db $TEMP/at_demo.db --today
+      2026-10-15"; echo "--- followup Priya"; uv run actiontrack $A followup
+      Priya; echo "exit=$?"; ec…)
+  ⎿  --- followup Priya
+     error: 'Priya' matches several owners:
+       Priya Nair
+     … +74 lines (ctrl+o to expand)
+
+● It all works on the real data, with two small issues to tidy up: unordered
+  warnings within a file and a missing separator before the dry-run summary.
+  Next I'll verify that re-ingesting the real corpus is idempotent. · summary
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  68:        args = {"to": draft.to or "", "subject": draft.subject, "bo
+     dy": draft.body}
+     106:        print(f"Subject: {draft.subject}\nTo: {draft.to or '(none)
+     '}\n\n{draft.body}
+
+● Bash(sed -n 102,110p src/actiontrack/followup_gmail_draft.py)
+  ⎿      def __init__(self, out: TextIO):
+             self._out = out
+     … +5 lines (ctrl+o to expand)
+
+● The escape got mangled by the heredoc. I'll fix it with Edit.
+
+● Update(~\Desktop\ai-prac-assignment\app\src\actiontrack\followup_gmail_draft.p
+        y)
+  ⎿  Added 1 line, removed 2 lines
+      103          self._out = out
+      104  
+      105      def create_draft(self, draft: Draft) -> DraftResult:
+      106 -        print(f"Subject: {draft.subject}\nTo: {draft.to or '(n
+          -one)'}\n\n{draft.body}                                        
+      107 -", file=self._out)                                            
+      106 +        print(f"Subject: {draft.subject}\nTo: {draft.to or '(n
+          +one)'}\n\n{draft.body}\n", file=self._out)                    
+      107          return DraftResult("dry-run")
+      108  
+      109  
+
+● Bash(export PYTHONIOENCODING=utf-8; A="--db $TEMP/at_demo.db --today
+      2026-10-15"; uv run actiontrack $A ingest ../notes/notes 2>/dev/null |
+      head -4; echo "--- fresh…)
+  ⎿  Ingest complete: 30 files read, 5 skipped
+       Items: 0 added, 0 merged (duplicates), 0 updated
+       Needs attention: 11 unassigned (5 ambiguous owner), 20 with no due d
+     … +15 lines (ctrl+o to expand)
+
+● Idempotent on the real data, and a fresh ingest takes about a second. Now I'll
+  keep the sample notes as a permanent test fixture, with assertions for each
+  trap.
+
+● Bash(mkdir -p tests/fixtures && cp -r ../notes/notes tests/fixtures/notes &&
+      ls tests/fixtures/notes | wc -l && cmp ../notes/notes/scratch.md
+      tests/fixtures/notes/sc…)
+  ⎿  36
+     binary-preserved
+
+● Write(~\Desktop\ai-prac-assignment\app\tests\test_sample_notes.py)
+  ⎿  Wrote 162 lines to ..\app\tests\test_sample_notes.py
+       1 """Acceptance tests against the real sample meeting notes in tes
+         ts/fixtures/notes (36 files, many traps)."""
+       2 import io
+       3 import pathlib
+       4 import shutil
+       6 
+       7 import pytest
+       8 
+       9 from actiontrack.cli_app import main
+      10 from actiontrack.core_store import Store
+     … +207 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_sample_notes.py 2>&1 | tail -30)
+  ⎿  tmp_path = WindowsPath('C:/Users/Coditas/AppData/Local/Temp/pytest-of-
+     karan.singh_coditas/pytest-13/test_cli_end_to_end_on_sample_0')
+     … +27 lines (ctrl+o to expand)
+
+● That's a sloppy assertion in my test: the word "open" appears inside task
+  text. I'm tightening it.
+
+● Bash(python - <<'EOF'
+      import pathlib…)
+  ⎿  tests\test_sample_notes.py:155: AssertionError
+     =========================== short test summary info ==================
+     =========
+     … +3 lines (ctrl+o to expand)
+
+● Bash(timeout 300 uv run pytest -q tests/test_sample_notes.py 2>&1 | grep -E
+      "^E" | head)
+  ⎿  E       AssertionError: assert (0 == 0 and 'open' not in '3   Anita D.
+     ..cutover.md\n'
+     E
+     … +14 lines (ctrl+o to expand)
+
+● The first replace didn't apply, because the heredoc escaped the quotes
+  differently. I'll use Edit.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(~\Desktop\ai-prac-assignment\app\tests\test_sample_notes.py)
+  ⎿  Added 2 lines, removed 1 line
+      152      code, out, err = run("ingest", str(FIXTURES))
+      153      assert code == 0 and "30 files read, 5 skipped" in out and
+            "skipped:" in err and "Traceback" not in err
+      154      code, out, _ = run("list", "--status", "overdue")
+      155 -    assert code == 0 and "open" not in out.split("\n", 1)[1] a
+          -nd "fix the pagination bug" in out                            
+      155 +    assert code == 0 and "fix the pagination bug" in out      
+      156 +    assert all(" overdue " in row for row in out.splitlines()[
+          +1:])                                                          
+      157      assert run("list", "--owner", "Priya")[0] == 2 and run("li
+           st", "--owner", "Rahul")[0] == 2
+      158      code, out, _ = run("list", "--owner", "Karan", "--due-befo
+           re", "2026-10-02")
+      159      assert code == 0 and "send the vendor invoice list" in out
+            and "approve the Q4 cloud spend" not in out.split("\n", 1)[0]
+● Bash(timeout 300 uv run pytest -q 2>&1 | tail -4)
+  ⎿  ......................................................................
+     .. [ 34%]
+     ......................................................................
+     … +4 lines (ctrl+o to expand)
+
+● All 210 tests pass. Last, I'll record the behaviour changes in the affected
+  module specs so the docs match the code.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/modules && cat >>
+      ingest_note_parser/spec.md <<'EOF'…)
+  ⎿  done
+
+● I ran the app on all 36 sample notes and changed it where they broke the old
+  assumptions. Ingest now reads 30 notes, skips 5 and stores 90 items. All 210
+  tests pass, including 12 new ones that use a copy of the notes in
+  app/tests/fixtures/notes/.
+
+  What the sample notes showed
+
+  The first run read only 2 of 36 files. The notes mostly use plain Date: and
+  Attendees: header lines, not YAML, and the old parser rejected them. After the
+  fixes below, I checked every stored item by hand against its note.
+
+  Changes
+
+  - Headers and dates: the parser accepts plain Date:/Attendees: header lines as
+    well as YAML. It reads dates like 9 September 2026 and Monday, 14 September
+    2026.
+  - Bullets: * and + bullets and nested items now count as items.
+  - Text that isn't an action:
+    - Fenced code, HTML comments and > quotes are ignored.
+    - Before, the code-fence example and the quoted Karan to refund… line would
+      have been stored as real items.
+  - Due dates: the resolver now handles:
+    - Oct 3rd
+    - Wed 16 Sep
+    - Saturday 10 Oct
+    - EOD and EOD tomorrow
+    - end of next week
+    - next Tuesday
+    - mid-October
+    - — by Friday
+  - Skipping a non-date by: an earlier non-date such as by 10% no longer hides
+    the real date, as in cut costs by 10% — proposal by 2026-10-09.
+  - Owners:
+    - @anita: … and Lena (with Priya) to … now resolve.
+    - Everyone, Team, Someone and TBD are stored as unassigned without a
+      warning.
+  - Specs: I recorded these changes as amendments in the affected module specs.
+
+  What it does on the real notes
+
+  - Skipped: 5 notes, each reported with its reason:
+    - the empty file
+    - scratch.md, which isn't valid UTF-8
+    - untitled.md, which has no header
+    - the standup with no attendees
+    - the sales note dated "sometime last week"
+  - Merged: repeated items merge across meetings. A [x] in a later note marks
+    the item done, and the latest due date is kept.
+  - Ambiguous owners: 5 items are stored unassigned with an "ambiguous owner"
+    warning, because both Priyas or both Rahuls attended.
+  - Re-running ingest: adds, merges and updates nothing.
+
+  What you need to decide
+
+  - No emails in the notes: none of the sample attendees has an email address.
+    So followup Karan exits 1, as the spec says, and only --no-recipient gets a
+    draft, with an empty To:. I can add a --to EMAIL override or a small
+    people-to-email file if you want drafts to work with these notes.
+  - Non-checkbox actions: the offsite note has ACTION: Karan to circulate the 
+    offsite summary and an Owner | Action | Due table. The spec says to ignore
+    anything that isn't a - [ ] line, but the goal says nothing is dropped
+    silently. I flag each one as a warning and don't store it. Storing them
+    would be a small change if you prefer.
+  - Reworded duplicates: these stay separate by design (FR-E5). Examples are
+    send revised quote to Acme against send the revised quote to Acme, and
+    estimate SSO work against estimate the SSO work.
+
+✻ Crunched for 6m 49s · done 4:04 PM

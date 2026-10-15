@@ -1,0 +1,1121 @@
+ ▐▛███▛█   Claude Code v2.1.300
+▝▜██████▀  Sonnet 5.5 · Claude Team
+ ▝▝   ▝▝   ~\Desktop\ai-prac-assignment\modules
+
+
+>  you are a senior business analyst whose assigned to make requirement.md file 
+  for a project. The problem is defined in @statement.rtf file. Make sure to    
+  cover all the aspects defined in the statement and feel free to ask me        
+  questions to fill the knowledge gaps.                                         
+  ⎿  Read statement.rtf (18 lines)
+
+● I read the statement. Parts of it are garbled in the RTF: the ingest and
+  followup lines are cut off. I'll treat those as the following until you
+  correct me:
+
+  - Items are stored with owner, task, due date, source file and status.
+  - Due dates are resolved to a real date, for example "by Friday".
+  - followup sends nothing. It creates one Gmail draft per owner.
+
+  Four answers would change the requirements, so I'm asking those first.
+
+● User answered Claude's questions:
+  ⎿  · How are date and attendees written in a meeting note? → YAML front matter
+     (Recommended)
+     · Where does an owner's email address come from for the Gmail draft? → 
+     Attendee list in note
+     · Where should actiontrack store its data? → SQLite file (Recommended)
+     · Which language/runtime is the CLI built in? → Python (Recommended)
+
+● Write(~\Desktop\ai-prac-assignment\requirement.md)
+  ⎿  Wrote 269 lines to ..\requirement.md
+      1 # actiontrack — Requirements Specification
+      2 
+      3 | | |
+      4 |---|---|
+      5 | **Version** | 1.0 (draft for review) |
+      6 | **Date** | 2026-10-15 |
+      7 | **Source** | `statement.rtf` + stakeholder answers (see §12) |
+      8 
+      9 ## 1. Background and Problem
+     … +411 lines (ctrl+o to expand)
+
+● I wrote requirement.md, based on your answers: YAML front matter, emails taken
+  from the attendee list, SQLite storage and Python.
+
+  It covers all four commands, the four edge cases from the statement,
+  non-functional requirements, the Gmail MCP interface, 13 acceptance scenarios
+  and a glossary. Any rule I decided myself instead of getting it from you is
+  marked Assumed in §11.
+
+  Please check these assumptions, because they change behaviour:
+  - Truncated statement: the RTF is cut off in the ingest and followup lines. I
+    took followup <owner> to mean one draft for one owner, per the statement.
+  - Overdue: an item is overdue only if it is open, has a due date and that date
+    is before today. Items with no due date are never overdue.
+  - Weekday due dates: a weekday such as "Friday" means the next occurrence
+    after the meeting date. For example, "by Friday" in a Monday 2026-10-12 note
+    resolves to 2026-10-16.
+  - Duplicates: two items are duplicates only when the owner and the cleaned
+    task text match exactly. Reworded items are not merged. When duplicates
+    merge, "done" wins and the latest due date is kept.
+  - Ambiguous first name: if two attendees share the first name and the item
+    doesn't say which one, the item is stored as unassigned and flagged in the
+    ingest summary. list --owner and followup with an ambiguous first name list
+    the candidates and do nothing.
+  - Malformed note: a note with missing or invalid front matter, date or
+    attendees is skipped whole and reported, and the run exits 0.
+  - No email on file: an owner with no email gets no draft by default. A
+    --no-recipient flag would create one with an empty To field.
+  - --dry-run: I added this option to followup, which you didn't ask for. It
+    prints the draft without calling Gmail.
+
+  One question is still open: the exact tool names and parameters of the Gmail
+  MCP connector (Q-8 in the file). That needs to be settled at design time.
+
+✻ Worked for 1m 8s · done 3:23 PM
+
+> Now drill down the requirements in @requirement.md into multiple modules.     
+  Each module should include spec.md, plan.md, tasks.md and test-cases.md. Try  
+  to make these modules loosely coupled to avoid high dependency and for        
+  inter-related modules keep naming convention like module_reletive_feat1 and   
+  module_reletive_feat2.                                                        
+  ⎿  Read requirement.md (270 lines)
+
+● I'll split the requirements into 14 modules, each a single Python file with
+  its own spec.md, plan.md, tasks.md and test-cases.md. They'll be grouped by
+  name prefix: core_*, ingest_*, track_*, followup_* and cli_app. I'm writing
+  the shared contract first, then the rest.
+
+● Write(README.md)
+  ⎿  Wrote 98 lines to README.md
+       1 # actiontrack — Module Breakdown
+       2 
+       3 Derived from `../requirement.md`. Each module folder holds `spec
+       4 Each module is **one Python file**: `src/actiontrack/<module_nam
+         e>.py`. Tests: `tests/test_<module_name>.py`.
+       5 
+       6 ## Naming convention
+       8 Related modules share a prefix: `<family>_<feature>`.
+       9 
+      10 | Family | Purpose | Modules |
+     … +121 lines (ctrl+o to expand)
+
+● Write(core_models\spec.md)
+  ⎿  Wrote 71 lines to core_models\spec.md
+      1 # core_models — Spec
+      2 
+      3 **Family:** `core_` · **File:** `src/actiontrack/core_models.py` 
+      4 
+      5 ## Purpose
+      6 The single shared vocabulary. Every other module exchanges data u
+        sing these types, so no module needs to know another's internals.
+      8 ## Requirements covered
+      9 FR-E13 (person identity), FR-L3 (overdue definition), NFR-7 (exit
+         codes), NFR-8 (injectable today), NFR-10 (date-only).
+     … +77 lines (ctrl+o to expand)
+
+● Write(core_models\plan.md)
+  ⎿  Wrote 23 lines to core_models\plan.md
+       1 # core_models — Plan
+       3 ## Approach
+       4 Plain `dataclasses`, no behaviour beyond two small pure function
+         s. Build first; everything else depends on it.
+       6 ## Design decisions
+       7 - `Person` equality on `.key` only, so `Person("Priya Sharma", "
+       8 - `Item` is mutable (merge and mark-done edit fields). All other
+          types are frozen.
+       9 - `dedup_key` lives on `Item` so `core_store` can index it witho
+      10 - `Issue` (not `Warning`) to avoid shadowing the builtin.
+     … +18 lines (ctrl+o to expand)
+
+● Write(core_models\tasks.md)
+  ⎿  Wrote 9 lines to core_models\tasks.md
+      1 # core_models — Tasks
+      3 - [ ] CM-1 Create `src/actiontrack/core_models.py` with `Person`,
+         `RawItemLine`, `Note`, `Item`, `Issue`, `Draft`, `DraftResult`
+      4 - [ ] CM-2 Add `MalformedNote`, `AppError` exceptions and exit-co
+      5 - [ ] CM-3 Implement `norm_name`, `Person.key`, `Person.first_nam
+        e`, key-based `__eq__`/`__hash__`
+      7 - [ ] CM-5 Implement `resolve_today(cli_value, env)` with precede
+        nce and validation
+      8 - [ ] CM-6 Write `tests/test_core_models.py` covering all cases i
+      9 - [ ] CM-7 Confirm module imports nothing outside stdlib
+     … +4 lines (ctrl+o to expand)
+
+● Write(core_models\test-cases.md)
+  ⎿  Wrote 16 lines to core_models\test-cases.md
+       1 # core_models — Test Cases
+       3 | ID | Given | When | Then |
+       4 |---|---|---|---|
+         Sharma","a@x.com")` | compare | equal, same hash |
+       6 | CM-T2 | `Person("Priya Sharma","ps@x.com")`, `Person("Priya Na
+         t_name == "Priya"` |
+       7 | CM-T3 | `Person("  Priya   Sharma ", None)` | `.key` | `"priya
+       8 | CM-T4 | open item, due 2026-10-10, today 2026-10-15 | `is_over
+         due` | True |
+      10 | CM-T6 | open item, due None | `is_overdue` | False |
+     … +14 lines (ctrl+o to expand)
+
+● Next up are core_store and the ingest_* leaf modules.
+
+● Write(core_store\spec.md)
+  ⎿  Wrote 42 lines to core_store\spec.md
+      1 # core_store — Spec
+      2 
+      3 **Family:** `core_` · **File:** `src/actiontrack/core_store.py` ·
+      4 
+      5 ## Purpose
+      6 The only module that talks to SQLite. Gives every other module a 
+        small repository API for `Item`s.
+      8 ## Requirements covered
+      9 FR-I2 (persist, DB path), FR-I3 (no duplicate rows), FR-D1 (done_
+        at), NFR-2 (atomic, no corruption), NFR-4 (speed).
+     … +51 lines (ctrl+o to expand)
+
+● Write(core_store\plan.md)
+  ⎿  Wrote 28 lines to core_store\plan.md
+       1 # core_store — Plan
+       3 ## Approach
+       4 Thin wrapper over stdlib `sqlite3`. No ORM. Row ↔ `Item` convers
+       5 
+       6 ## Design decisions
+         dempotent ingest).
+       8 - **Owner identity:** store `owner_key` (indexed) alongside name
+       9 - **JSON text** for `also_seen_in` / `notes`: small lists, never
+          queried.
+         IN`/`COMMIT`, with a depth counter for nested `atomic()`.
+     … +27 lines (ctrl+o to expand)
+
+● Write(core_store\tasks.md)
+  ⎿  Wrote 13 lines to core_store\tasks.md
+       1 # core_store — Tasks
+       3 - [ ] CS-1 Create `core_store.py`; open connection, create `item
+         s` table with UNIQUE index on `dedup_key`, set `user_version = 1
+       4 - [ ] CS-2 Row ↔ `Item` mapping helpers (ISO dates, JSON lists, 
+         nullable owner)
+       6 - [ ] CS-4 `find_by_key`
+       7 - [ ] CS-5 `query` with optional `owner_key` (incl. `"unassigned
+       8 - [ ] CS-6 `owners()` distinct non-null owners
+       9 - [ ] CS-7 `mark_done` returning `done` / `already_done` / `not_
+      10 - [ ] CS-8 `atomic()` with rollback and nesting support
+     … +9 lines (ctrl+o to expand)
+
+● Write(core_store\test-cases.md)
+  ⎿  Wrote 24 lines to core_store\test-cases.md
+       1 # core_store — Test Cases
+       3 | ID | Given | When | Then |
+       4 |---|---|---|---|
+         `user_version == 1` |
+         rip (incl. `None` owner, `None` due, lists) |
+       7 | CS-T3 | two items added | compare ids | ids are distinct small
+       8 | CS-T4 | item with key K stored | `add` another item with key K
+          | integrity error surfaced (UNIQUE guard) |
+         `None` |
+         =A.key)` | only A's items |
+     … +33 lines (ctrl+o to expand)
+
+● Write(ingest_note_parser\spec.md)
+  ⎿  Wrote 30 lines to ingest_note_parser\spec.md
+      1 # ingest_note_parser — Spec
+      2 
+      3 **Family:** `ingest_` · **File:** `src/actiontrack/ingest_note_pa
+      4 
+      5 ## Purpose
+      6 Turn the raw text of one `.md` file into a `Note`, or reject it a
+        s malformed. Pure: takes text, does no file I/O.
+      8 ## Requirements covered
+      9 FR-N1, FR-N2, FR-N3, FR-P3 (checked flag), FR-E16 (reject whole n
+        ote), §7.4 malformed definition.
+     … +40 lines (ctrl+o to expand)
+
+● Write(ingest_note_parser\plan.md)
+  ⎿  Wrote 26 lines to ingest_note_parser\plan.md
+       1 # ingest_note_parser — Plan
+       3 ## Approach
+         l.safe_load`, validate fields, then scan the body with one compi
+       5 
+       7 - **PyYAML over a hand-rolled parser:** names like `"Doe, Jane" 
+         <j@x.com>` and quoting rules are error-prone to hand-parse. This
+         FR-1 as there is no practical stdlib YAML).
+         rom untrusted notes.
+         mail>[^>]+)>)?$`.
+         the file line.
+     … +28 lines (ctrl+o to expand)
+
+● Write(ingest_note_parser\tasks.md)
+  ⎿  Wrote 11 lines to ingest_note_parser\tasks.md
+       1 # ingest_note_parser — Tasks
+       3 - [ ] NP-1 Add PyYAML to `pyproject.toml` dependencies
+       4 - [ ] NP-2 Implement front-matter splitter (opening/closing `---
+       5 - [ ] NP-3 Implement YAML load with `safe_load`; map errors to `
+       6 - [ ] NP-4 Validate `date` (date object or ISO string)
+       7 - [ ] NP-5 Parse `attendees` into `Person` (name + optional emai
+       8 - [ ] NP-6 Implement body item regex (`- [ ]`, `- [x]`, `* [ ]`)
+          with original line numbers
+         ed errors)
+         ont-matter, bad-yaml, bad-date, no-attendees, empty, no-ite
+     … +8 lines (ctrl+o to expand)
+
+● Write(ingest_note_parser\test-cases.md)  ⎿  Wrote 26 lines to ingest_note_parser\test-cases.md
+       1 # ingest_note_parser — Test Cases
+       3 | ID | Given | When | Then |
+       4 |---|---|---|---|
+         ote` | `Note` with date, 3 `Person`s, 3 `RawItemLine`s |
+         ed` False, True, True |
+       7 | NP-T3 | attendee `Priya Sharma <priya@x.com>` | parse | `Perso
+       8 | NP-T4 | attendee `Rahul Mehta` (no email) | parse | `Person("R
+         ahul Mehta", None)` |
+         nt matter" |
+          |
+     … +34 lines (ctrl+o to expand)
+
+● Write(ingest_owner_resolver\spec.md)
+  ⎿  Wrote 41 lines to ingest_owner_resolver\spec.md
+      1 # ingest_owner_resolver — Spec
+      2 
+      3 **Family:** `ingest_` · **File:** `src/actiontrack/ingest_owner_r
+      4 
+      5 ## Purpose
+      6 From one item's text and the note's attendee list, decide who own
+        s the item and return the remaining task text. Pure function.
+      8 ## Requirements covered
+      9 FR-P1, FR-E10, FR-E11, FR-E12, FR-E14, FR-E18 (partial), FR-E13 (
+        uses `Person.key`).
+     … +50 lines (ctrl+o to expand)
+
+● Write(ingest_owner_resolver\plan.md)
+  ⎿  Wrote 24 lines to ingest_owner_resolver\plan.md
+       1 # ingest_owner_resolver — Plan
+       3 ## Approach
+         tch. Pure function, table-driven tests.
+       5 
+       7 - **Anchored prefix pattern** keeps false positives low. "Update
+          so `none`.
+         s task text.** Stripping the name would lose information the hum
+         an needs to fix it.
+         t-name collisions can only arise inside one meeting. The common 
+      10 - The `Person` returned is the attendee object, so email a
+     … +26 lines (ctrl+o to expand)
+
+● Write(ingest_owner_resolver\tasks.md)
+  ⎿  Wrote 8 lines to ingest_owner_resolver\tasks.md
+      1 # ingest_owner_resolver — Tasks
+      2 
+      4 - [ ] OR-2 Implement prefix regex (`<1–3 name words> to|will <res
+        t>`), allow `.`, `-`, `'`, non-ASCII letters
+      5 - [ ] OR-3 Implement matching ladder: full name → first name + in
+      6 - [ ] OR-4 Return `resolved` / `ambiguous` / `unknown` / `none` w
+        ith correct `task_text` and `note`
+      7 - [ ] OR-5 Handle full-name collision across different emails as 
+      8 - [ ] OR-6 Write `tests/test_ingest_owner_resolver.py` for all ca
+        ses in `test-cases.md`
+     … +3 lines (ctrl+o to expand)
+
+● Write(ingest_owner_resolver\test-cases.md)
+  ⎿  Wrote 31 lines to ingest_owner_resolver\test-cases.md
+       1 # ingest_owner_resolver — Test Cases
+       3 Attendees unless stated: Priya Sharma, Rahul Mehta (one Priya).
+       4 
+       5 | ID | Text | Then |
+       7 | OR-T1 | `Priya to send the revised quote by Friday` | `resolve
+         d`, owner Priya Sharma, task_text `send the revised quote by Fri
+       8 | OR-T2 | `Rahul will share the deck` | `resolved`, owner Rahul 
+         Mehta, task_text `share the deck` |
+       9 | OR-T3 | `priya TO send quote` (case) | `resolved` |
+         |
+     … +33 lines (ctrl+o to expand)
+
+● Write(ingest_date_resolver\spec.md)
+  ⎿  Wrote 52 lines to ingest_date_resolver\spec.md
+      1 # ingest_date_resolver — Spec
+      2 
+        solver.py` · **Depends on:** `core_models` (not even needed for t
+        ypes), stdlib `datetime`, `re`
+      4 
+      6 Find a due-date phrase in a task text, resolve it to a real date 
+        relative to the **meeting date**, and return the text with that p
+        hrase removed. Pure function; never reads the clock.
+      8 ## Requirements covered
+      9 FR-P2, FR-E18 (bad phrase → no date, text kept), AC-3.
+     … +63 lines (ctrl+o to expand)
+
+● Write(ingest_date_resolver\plan.md)
+  ⎿  Wrote 25 lines to ingest_date_resolver\plan.md
+       1 # ingest_date_resolver — Plan
+       3 ## Approach
+       4 Two-stage: (1) locate the phrase with a regex (introducer + cand
+         ession with a small ordered list of matchers. Stdlib only.
+       6 ## Design decisions
+       7 - **No `dateutil` / `dateparser`:** they guess wildly (`"Friday"
+         y. The supported grammar is tiny and fully specified.
+       8 - **Matchers as a list of `(regex, fn(match, meeting_date) -> da
+       9 - **Return the cleaned text** from here so `ingest_runner` stays
+      10 - Month names via a dict (`jan`..`dec`, full names) to avoid lo
+     … +31 lines (ctrl+o to expand)
+
+● Write(ingest_date_resolver\tasks.md)
+  ⎿  Wrote 12 lines to ingest_date_resolver\tasks.md
+       1 # ingest_date_resolver — Tasks
+       3 - [ ] DR-1 Define `DueResult`
+       4 - [ ] DR-2 Phrase locator: introducers `by|before|on|due|until` 
+       5 - [ ] DR-3 Matcher: ISO date
+       6 - [ ] DR-4 Matchers: written dates with/without year (`30 Oct`, 
+       7 - [ ] DR-5 Matcher: weekday names (strictly after meeting date; 
+         same weekday → +7)
+         eek`/`eow`, `end of month`/`eom`
+       9 - [ ] DR-7 Clean task text after removing the phrase
+         ning (only when phrase looks date-like)
+     … +8 lines (ctrl+o to expand)
+
+● Write(ingest_date_resolver\test-cases.md)
+  ⎿  Wrote 33 lines to ingest_date_resolver\test-cases.md
+       1 # ingest_date_resolver — Test Cases
+       2 
+         6-10-16**, **M3 = Sat 2026-10-17**.
+       4 
+       5 | ID | Text | Meeting | Then |
+       7 | DR-T1 | `send the revised quote by Friday` | M1 | due 2026-10-
+         16, text `send the revised quote` (**AC-3**) |
+       8 | DR-T2 | `send quote by Friday` | M2 (Friday) | due 2026-10-23 
+       9 | DR-T3 | `send quote by Monday` | M1 | due 2026-10-19 |
+      10 | DR-T4 | `send quote by Sat` | M3 | due 2026-10-24 |
+     … +39 lines (ctrl+o to expand)
+
+● Now ingest_dedup and ingest_runner.
+
+● Write(ingest_dedup\spec.md)
+  ⎿  Wrote 43 lines to ingest_dedup\spec.md
+      1 # ingest_dedup — Spec
+      2 
+      3 **Family:** `ingest_` · **File:** `src/actiontrack/ingest_dedup.p
+      4 
+      5 ## Purpose
+      6 Define what "the same action item" means and how two occurrences 
+        merge. Pure functions. It does not read or write the database.
+      8 ## Requirements covered
+      9 FR-E1, FR-E2, FR-E3, FR-E5, FR-I3 (no duplicate/reset), FR-I7, Q-
+        4, Q-9.
+     … +56 lines (ctrl+o to expand)
+
+● Write(ingest_dedup\plan.md)
+  ⎿  Wrote 25 lines to ingest_dedup\plan.md
+       1 # ingest_dedup — Plan
+       3 ## Approach
+       4 Two tiny pure functions for the key, one pure `merge`. State liv
+       5 
+       6 ## Design decisions
+         a bigger decision with false-merge risk, so it is deferred.
+       8 - **`dedup_key` string** (not a tuple) so it is storable and ind
+       9 - **Merge returns a new `Item`** (use `dataclasses.replace`) so 
+         tests and callers can diff before/after.
+         ed" accurately and keeps re-ingest idempotent.
+     … +26 lines (ctrl+o to expand)
+
+● Write(ingest_dedup\tasks.md)
+  ⎿  Wrote 11 lines to ingest_dedup\tasks.md
+       1 # ingest_dedup — Tasks
+       3 - [ ] DD-1 Implement `normalise_task` (lower-case, strip ASCII +
+       4 - [ ] DD-2 Implement `dedup_key(owner, task)` using `Person.key`
+          or `-`
+       6 - [ ] DD-4 `merge`: status rule (done wins, never reopen, `done_
+       7 - [ ] DD-5 `merge`: primary source = earliest `source_date`; mai
+       8 - [ ] DD-6 `merge`: due-date rule (keep later) and `DUE_CHANGED`
+          issue
+         text
+         n identical re-ingest
+     … +8 lines (ctrl+o to expand)
+
+● Write(ingest_dedup\test-cases.md)
+  ⎿  Wrote 25 lines to ingest_dedup\test-cases.md
+       1 # ingest_dedup — Test Cases
+       3 | ID | Given | When | Then |
+       4 |---|---|---|---|
+         e"` | `normalise_task` | equal |
+         a spaces) | normalise | equal |
+       7 | DD-T3 | `"“Quote” review"` (curly quotes) | normalise | `"quot
+       8 | DD-T4 | same owner Priya Sharma, same task text | `dedup_key` 
+         | equal keys |
+         key` | different keys (FR-E13) |
+         ys |
+     … +32 lines (ctrl+o to expand)
+
+● Write(ingest_runner\spec.md)
+  ⎿  Wrote 61 lines to ingest_runner\spec.md
+       1 # ingest_runner — Spec
+       3 **Family:** `ingest_` · **File:** `src/actiontrack/ingest_runner
+       4 **Depends on:** `core_models`, `core_store`, `ingest_note_parser
+         `, `ingest_owner_resolver`, `ingest_date_resolver`, `ingest_dedu
+       5 
+       7 Orchestrate `actiontrack ingest <folder>`: read files, run the p
+         ntains **no** parsing, date, owner or merge logic of its own.
+       8 
+      10 FR-N4, FR-I1, FR-I3, FR-I4, FR-I5, FR-I6, FR-P3 (status), FR-E6,
+         Acceptance: AC-1, 2, 4, 5, 6, 12.
+     … +77 lines (ctrl+o to expand)
+
+● Write(ingest_runner\plan.md)
+  ⎿  Wrote 27 lines to ingest_runner\plan.md
+       1 # ingest_runner — Plan
+       3 ## Approach
+         . All rules live in those modules; this one only sequences and c
+         ounts.
+       6 ## Design decisions
+          crash never leaves partial data from that file (FR-E16, NFR-2).
+         nism, but `merge` picks primary source by date, so the outcome d
+         oesn't depend on order.
+          so tests can use `:memory:` and a fixed clock.
+         ert on data, and the CLI decides where te
+     … +32 lines (ctrl+o to expand)
+
+● Write(ingest_runner\tasks.md)
+  ⎿  Wrote 14 lines to ingest_runner\tasks.md
+       1 # ingest_runner — Tasks
+       3 - [ ] IR-1 Define `IngestReport`
+       4 - [ ] IR-2 Folder validation (`AppError` exit 1) and non-recursi
+       5 - [ ] IR-3 Read + UTF-8/BOM decode with error → skipped `Issue`
+         tore nothing
+       7 - [ ] IR-5 Per-line pipeline: `resolve_owner` → `resolve_due` → 
+       8 - [ ] IR-6 Persist: `find_by_key` → `add` or `merge` + `update`;
+          collect `Issue`s from merge
+         d exceptions to `Issue` and continue
+         iguous / no-due) per 
+     … +13 lines (ctrl+o to expand)
+
+● Write(ingest_runner\test-cases.md)
+  ⎿  Wrote 31 lines to ingest_runner\test-cases.md
+       1 # ingest_runner — Test Cases
+       3 Uses real parser/resolvers/dedup, `Store(":memory:")` and a fixe
+       4 
+       5 | ID | Given | When | Then |
+       7 | IG-T1 | folder with 3 valid notes | `run_ingest` | **AC-1:** i
+         tch |
+         t | **AC-2:** one row; `also_seen_in` lists B; `items_merged == 
+         1` |
+         , owner NULL; counted in `items_unassigned` |
+         NULL; counted in `items_no_due` |
+     … +50 lines (ctrl+o to expand)
+
+● Now track_*, followup_* and cli_app.
+
+● Write(track_owner_lookup\spec.md)
+  ⎿  Wrote 45 lines to track_owner_lookup\spec.md
+      1 # track_owner_lookup — Spec
+      2 
+        kup.py` · **Depends on:** `core_models` only
+      4 
+      5 ## Purpose
+        <owner>`) into exactly one stored `Person`, or explain why not. P
+        ure function over a list of known owners.
+      7 
+      9 FR-E15, FR-L2 (owner filter), FR-E7 (`unassigned` keyword), AC-11
+         (ambiguity handling).
+     … +48 lines (ctrl+o to expand)
+
+● Write(track_owner_lookup\plan.md)
+  ⎿  Wrote 22 lines to track_owner_lookup\plan.md
+       1 # track_owner_lookup — Plan
+       3 ## Approach
+         asses. No indexing needed.
+       5 
+       7 - **Separate module** because both `track_list` and `followup_ru
+         ents the two commands from disagreeing about who "Priya" is.
+         ency on `core_store` and tests need no DB.
+       9 - **Strict equality only.** A typo must not select the wrong per
+         ong match is worse than a refusal.
+         ase it.
+     … +22 lines (ctrl+o to expand)
+
+● Write(track_owner_lookup\tasks.md)  ⎿  Wrote 9 lines to track_owner_lookup\tasks.md
+      1 # track_owner_lookup — Tasks
+      2 
+      3 - [ ] OL-1 Define `LookupResult`
+      5 - [ ] OL-3 Implement exact email match
+      6 - [ ] OL-4 Implement exact full-name match (with same-name-differ
+        ent-email → ambiguous)
+      7 - [ ] OL-5 Implement first-name match (unique → found, multiple →
+      8 - [ ] OL-6 Stable candidate ordering; blank query → `not_found`
+      9 - [ ] OL-7 Write `tests/test_track_owner_lookup.py` for all cases
+         in `test-cases.md`
+     … +2 lines (ctrl+o to expand)
+
+● Write(track_owner_lookup\test-cases.md)
+  ⎿  Wrote 22 lines to track_owner_lookup\test-cases.md
+       1 # track_owner_lookup — Test Cases
+       2 
+       3 Owners: Priya Sharma `ps@x.com`, Priya Nair `pn@x.com`, Rahul Me
+       4 
+       5 | ID | Query | Then |
+       6 |---|---|---|
+       7 | OL-T1 | `Rahul` | `found` Rahul Mehta |
+         nsensitive) |
+       9 | OL-T3 | `Rahul Mehta` | `found` |
+      10 | OL-T4 | `rahul@x.com` / `RAHUL@X.COM` | `found` |
+     … +19 lines (ctrl+o to expand)
+
+● Write(track_list\spec.md)
+  ⎿  Wrote 45 lines to track_list\spec.md
+       1 # track_list — Spec
+       3 **Family:** `track_` · **File:** `src/actiontrack/track_list.py`
+       4 **Depends on:** `core_models`, `core_store`, `track_owner_lookup
+         `
+       6 ## Purpose
+       7 Implement `actiontrack list`: filter stored items, order them, r
+       8 
+       9 ## Requirements covered
+      10 FR-L1–L5, FR-E7 (list unassigned), FR-E8 (undated items never ov
+         7, AC-8.
+     … +49 lines (ctrl+o to expand)
+
+● Write(track_list\plan.md)
+  ⎿  Wrote 24 lines to track_list\plan.md
+       1 # track_list — Plan
+       3 ## Approach
+         e.query`, apply the derived `overdue` filter and ordering in Pyt
+         matting.
+       6 ## Design decisions
+         _overdue`) is used here and by `followup_compose`, so the two ca
+       8 - **`today` is a parameter,** not read from the clock, making ov
+       9 - **Result object instead of exceptions** for ambiguous/not-foun
+          2.
+         ata (`
+     … +23 lines (ctrl+o to expand)
+
+● Write(track_list\tasks.md)
+  ⎿  Wrote 10 lines to track_list\tasks.md
+       1 # track_list — Tasks
+       3 - [ ] TL-1 Define `ListResult`
+       4 - [ ] TL-2 Owner resolution via `lookup_owner` and mapping to fi
+       5 - [ ] TL-3 Combine filters (`store.query` for owner/status/due-b
+       6 - [ ] TL-4 Implement ordering (overdue, due asc, undated last, i
+         d)
+          and `—`, `(+N)` source suffix, truncation)
+       8 - [ ] TL-6 Empty-result message
+         n, unassigned, undated)
+         st-cases.md`
+     … +5 lines (ctrl+o to expand)
+
+● Write(track_list\test-cases.md)
+  ⎿  Wrote 28 lines to track_list\test-cases.md
+       1 # track_list — Test Cases
+       3 Seed (today = 2026-10-15): 
+       4 #1 Priya Sharma, open, due 10-10 · #2 Priya Sharma, open, due 10
+          unassigned, open, no due · #6 Priya Nair, open, due 10-12 · #7 
+       5 
+       6 | ID | Call | Then |
+       8 | TL-T1 | no filters | all 7 items, ordered: overdue (#1, #6), t
+         hen due asc (#2, #3), then undated (#5, #7), then done #4 by its
+       9 | TL-T2 | `status=overdue` | **AC-7:** #1, #6 only |
+         ed) |
+     … +32 lines (ctrl+o to expand)
+
+● Update(track_list\test-cases.md)
+  ⎿  Added 1 line, removed 1 line
+       5  
+       6  | ID | Call | Then |
+       7  |---|---|---|
+       8 -| TL-T1 | no filters | all 7 items, ordered: overdue (#1, #6), 
+         -then due asc (#2, #3), then undated (#5, #7), then done #4 by i
+         -ts due position rules (see TL-T20) |                           
+       8 +| TL-T1 | no filters | all 7 items, in order #1, #6 (overdue, d
+         +ue asc), #4, #2, #3 (non-overdue, due asc), #5, #7 (undated, by
+         + id) |                                                         
+       9  | TL-T2 | `status=overdue` | **AC-7:** #1, #6 only |
+      10  | TL-T3 | `status=open` | #1, #2, #3, #5, #6, #7 (overdue inclu
+          ded) |
+      11  | TL-T4 | `status=done` | #4 only |
+
+● Update(ingest_dedup\spec.md)
+  ⎿  Added 1 line, removed 1 line
+      30  **Key** (`dedup_key`): `"<owner.key or '-'>|<normalise_task(tas
+          k)>"`. Two items match only on exact key equality (no fuzzy mat
+          ching, FR-E5). Unassigned items with the same normalised task s
+          hare the key `-|…`. Two people with the same first name have di
+          fferent keys (FR-E13).
+      31  
+      32  **Merge** (`incoming` has the same key as `existing`; the id is
+           kept from `existing`):
+      33 -1. **Status:** `done` wins. If either is done → `done`. A `done
+         -` item is never reopened (Q-4). If `incoming` is done and `exis
+         -ting` is open, set `done_at` from `incoming` only if `existing.
+         -done_at` is empty. The caller passes the time.                 
+      33 +1. **Status:** `done` wins. If either is done → `done`. A `done
+         +` item is never reopened (Q-4). If `incoming` is done and `exis
+         +ting` is open, take `done_at` from `incoming` (the runner sets 
+         +it to its `now` for checked lines). An existing `done_at` is ne
+         +ver overwritten.                                               
+      34  2. **Primary source:** the occurrence with the **earliest** `so
+          urce_date` becomes `source_file`/`source_date`. On a tie, `exis
+          ting` stays. The other source goes to `also_seen_in`.
+      35  3. **`also_seen_in`:** add the non-primary `source_file` when a
+          bsent. Never contains the primary or duplicates. Same file twic
+          e (repeat inside one note) adds nothing.
+      36  4. **Due date:** if both are set, keep the **later**. If only o
+          ne is set, keep it. If the kept value differs from `existing.du
+          e_date` and `existing.due_date` was set, emit `Issue(code="DUE_
+          CHANGED")`.
+
+● Update(ingest_runner\spec.md)
+  ⎿  Added 1 line, removed 1 line
+      31     1. `resolve_owner(line.text, note.attendees)` → owner / text
+           / note.
+      32     2. `resolve_due(owner_result.task_text, note.date)` → due / 
+          cleaned task / warning.
+      33     3. If the cleaned task is empty, use `raw_text` as the task 
+          (FR-E18) and add `UNPARSEABLE_ITEM`.
+      34 -   4. Build `Item` (`status = done if checked else open`, `sour
+         -ce_file`, `source_date = note.date`, `raw_text`, `notes`, `dedu
+         -p_key = dedup_key(owner, task)`).                              
+      34 +   4. Build `Item` (`status = done if checked else open`, `done
+         +_at = now` when checked, `source_file`, `source_date = note.dat
+         +e`, `raw_text`, `notes`, `dedup_key = dedup_key(owner, task)`).
+      35     5. `store.find_by_key(key)`: none → `store.add` (added++). E
+          xists → `merge`; if `changed` → `store.update` (merged++ and up
+          dated++ when fields beyond `also_seen_in` changed; unchanged → 
+          no write).
+      36  5. Any unexpected exception inside one file rolls back that fil
+          e's transaction, records an `Issue`, and continues with the nex
+          t file (never crash, NFR-2).
+      37  
+
+● Update(ingest_date_resolver\spec.md)
+  ⎿  Added 1 line, removed 1 line
+      1  # ingest_date_resolver — Spec
+      2  
+      3 -**Family:** `ingest_` · **File:** `src/actiontrack/ingest_date_r
+        -esolver.py` · **Depends on:** `core_models` (not even needed for
+        - types), stdlib `datetime`, `re`                                
+      3 +**Family:** `ingest_` · **File:** `src/actiontrack/ingest_date_r
+        +esolver.py` · **Depends on:** stdlib `datetime`, `re` only (no p
+        +roject modules)                                                 
+      4  
+      5  ## Purpose
+      6  Find a due-date phrase in a task text, resolve it to a real date
+          relative to the **meeting date**, and return the text with that
+          phrase removed. Pure function; never reads the clock.
+
+● Write(track_done\spec.md)
+  ⎿  Wrote 37 lines to track_done\spec.md
+      1 # track_done — Spec
+      2 
+      3 **Family:** `track_` · **File:** `src/actiontrack/track_done.py` 
+        · **Depends on:** `core_models`, `core_store`
+      4 
+      5 ## Purpose
+      6 Implement `actiontrack done <id>`: mark one stored item as done.
+      7 
+      8 ## Requirements covered
+      9 FR-D1, FR-D2, FR-D3, FR-D4. Acceptance: AC-9.
+     … +36 lines (ctrl+o to expand)
+
+● Write(track_done\plan.md)
+  ⎿  Wrote 21 lines to track_done\plan.md
+      1 # track_done — Plan
+      3 ## Approach
+      4 A ~10-line function over `store.mark_done` / `store.get`. Kept as
+        e.g. adding `undo` later) without touching `track_list`.
+      5 
+      7 - **Atomic decision lives in `core_store.mark_done`** (single UPD
+        ATE ... WHERE status='open'), so two concurrent calls cannot both
+      8 - **Result object with a ready message** so `cli_app` only prints
+         and maps the exit code.
+        ith the ambiguous-owner convention.
+     … +18 lines (ctrl+o to expand)
+
+● Write(track_done\tasks.md)
+  ⎿  Wrote 6 lines to track_done\tasks.md
+      1 # track_done — Tasks
+      2 
+      3 - [ ] TD-1 Define `DoneResult`
+      4 - [ ] TD-2 Implement `mark_done` over `store.mark_done` + `store.
+        get`
+      5 - [ ] TD-3 User-facing messages for all three outcomes (echo task
+         text)
+      6 - [ ] TD-4 Write `tests/test_track_done.py` for all cases in `tes
+        t-cases.md`
+
+● Write(track_done\test-cases.md)
+  ⎿  Wrote 13 lines to track_done\test-cases.md
+       1 # track_done — Test Cases
+       3 | ID | Given | When | Then |
+       4 |---|---|---|---|
+         `done`; status done; `done_at == now`; message echoes task |
+         track_list` | item no longer listed as open |
+       7 | TD-T3 | done item | `mark_done` again | `already_done`; `done_
+       8 | TD-T4 | no item 999 | `mark_done(999)` | `not_found`; message 
+         `No item with id 999`; store unchanged |
+         ` False afterwards |
+         g `[ ]` | ingest again | stays 
+     … +13 lines (ctrl+o to expand)
+
+● Write(followup_compose\spec.md)
+  ⎿  Wrote 32 lines to followup_compose\spec.md
+      1 # followup_compose — Spec
+      2 
+      3 **Family:** `followup_` · **File:** `src/actiontrack/followup_com
+      4 
+      5 ## Purpose
+      6 Build the follow-up email (`Draft`) for one owner from their item
+        s. Pure: no Gmail, no DB, no clock.
+      8 ## Requirements covered
+      9 FR-F1, FR-F2, FR-E4, FR-E8 (no due date wording), IR-3 (subject/b
+        ody shape).
+     … +37 lines (ctrl+o to expand)
+
+● Write(followup_compose\plan.md)
+  ⎿  Wrote 24 lines to followup_compose\plan.md
+       1 # followup_compose — Plan
+       3 ## Approach
+       4 Filter → sort → partition by `is_overdue` → render with f-string
+       5 
+       6 ## Design decisions
+         ear "nothing to follow up" branch (FR-F6).
+       8 - **Re-filters defensively** (open + same owner), so a caller bu
+       9 - **Plain text, f-strings:** no templating engine for a single f
+         ixed layout.
+         nition as `list`).
+     … +21 lines (ctrl+o to expand)
+
+● Write(followup_compose\tasks.md)
+  ⎿  Wrote 8 lines to followup_compose\tasks.md
+      1 # followup_compose — Tasks
+      2 
+        ne` when empty
+      4 - [ ] FC-2 Implement ordering and Overdue / Open partition via `i
+        s_overdue`
+         `N days overdue`, source + meeting date)
+      6 - [ ] FC-4 Implement subject, greeting, intro, closing; assemble 
+        `Draft` (`to`, `included_ids`)
+      8 - [ ] FC-6 Write `tests/test_followup_compose.py` with snapshot c
+        ases from `test-cases.md`
+     … +3 lines (ctrl+o to expand)
+
+● Write(followup_compose\test-cases.md)
+  ⎿  Wrote 24 lines to followup_compose\test-cases.md
+       1 # followup_compose — Test Cases
+       2 
+       3 Today = 2026-10-15. Owner: Rahul Mehta `rahul@x.com`.
+       5 | ID | Given | When | Then |
+       6 |---|---|---|---|
+       7 | FC-T1 | 1 overdue (due 10-10) + 2 open (10-20, none) | `compos
+         e` | body has `Overdue` section first, then `Open`; `included_id
+       8 | FC-T2 | only open items | compose | no `Overdue` heading |
+       9 | FC-T3 | only overdue items | compose | no `Open` heading |
+      10 | FC-T4 | no items | compose | returns `None` |
+     … +29 lines (ctrl+o to expand)
+
+● Write(followup_gmail_draft\spec.md)
+  ⎿  Wrote 46 lines to followup_gmail_draft\spec.md
+       1 # followup_gmail_draft — Spec
+       3 **Family:** `followup_` · **File:** `src/actiontrack/followup_gm
+         ail_draft.py`
+         an, spike task GD-1)
+       6 ## Purpose
+       7 The **only** module that talks to Gmail. Exposes a one-method ga
+         send.
+       8 
+      10 FR-F3, FR-F4 (never send), FR-F8 (connector unavailable), FR-F10
+         e: AC-13.
+     … +61 lines (ctrl+o to expand)
+
+● Write(followup_gmail_draft\plan.md)
+  ⎿  Wrote 26 lines to followup_gmail_draft\plan.md
+      1 # followup_gmail_draft — Plan
+      3 ## Approach
+      4 Define the tiny `DraftGateway` protocol first, ship `FakeGateway`
+        , then build the real MCP adapter after a short spike.
+      6 ## Design decisions
+      7 - **Protocol with one method** is the entire contract to the rest
+        he transport touches only this file.
+      8 - **"Never send" enforced three ways:** (1) no send method exists
+        cans the source and the tool allow-list for `send` (AC-13).
+        ), so `followup_run
+     … +34 lines (ctrl+o to expand)
+
+● Write(followup_gmail_draft\tasks.md)  ⎿  Wrote 12 lines to followup_gmail_draft\tasks.md
+      1 # followup_gmail_draft — Tasks
+      3 - [ ] GD-1 **Spike:** identify the Gmail MCP connector's create-d
+        raft tool name/arguments and the transport the Python CLI will us
+      4 - [ ] GD-2 Define `DraftGateway` protocol
+        ollowup_runner`
+      6 - [ ] GD-4 Implement `DryRunGateway` (prints subject/to/body to a
+      7 - [ ] GD-5 Implement `McpGmailGateway.create_draft` (lazy MCP imp
+        ort, timeout, response parsing)
+        → `AppError(exit_code=1)` with specified messages
+        ontainin
+     … +11 lines (ctrl+o to expand)
+
+● Write(followup_gmail_draft\test-cases.md)
+  ⎿  Wrote 21 lines to followup_gmail_draft\test-cases.md
+       1 # followup_gmail_draft — Test Cases
+       3 Adapter tests use a fake MCP transport (no network).
+       4 
+       6 |---|---|---|---|
+       7 | GD-T1 | fake transport returns draft id `d1` | `McpGmailGatewa
+         rt received exactly one call with `to`, `subject`, `body` |
+       8 | GD-T2 | `draft.to is None` | create | call made with empty rec
+       9 | GD-T3 | server command missing / cannot start | create | `AppE
+         rror` exit 1, message starts `Gmail connector unavailable` |
+         available" (no hang) |
+     … +28 lines (ctrl+o to expand)
+
+● Write(followup_runner\spec.md)
+  ⎿  Wrote 47 lines to followup_runner\spec.md
+       1 # followup_runner — Spec
+       3 **Family:** `followup_` · **File:** `src/actiontrack/followup_ru
+         nner.py`
+         `, `followup_compose`, and the `DraftGateway` **protocol** (inje
+       5 
+       6 ## Purpose
+         ather their open items, compose the email, create a draft, and r
+         eport. Contains no wording rules and no Gmail code.
+       9 ## Requirements covered
+         unassigned count), FR-E15. Acceptance: AC-10, AC-11.
+     … +57 lines (ctrl+o to expand)
+
+● Write(followup_runner\plan.md)
+  ⎿  Wrote 26 lines to followup_runner\plan.md
+       1 # followup_runner — Plan
+       3 ## Approach
+         c. Dependencies injected, so tests use `Store(":memory:")` + `Fa
+       5 
+       7 - **Outcome object, not exceptions,** for expected cases (ambigu
+         ous, no items, no email). Only genuine failures (`AppError` from
+       8 - **Depends on the gateway protocol only.** `cli_app` decides be
+         s no logic here.
+         e store does the filtering. `compose` re-checks defensively.
+         ched
+     … +31 lines (ctrl+o to expand)
+
+● Write(followup_runner\tasks.md)
+  ⎿  Wrote 11 lines to followup_runner\tasks.md
+       1 # followup_runner — Tasks
+       2 
+       4 - [ ] FR-2 Owner lookup branches with messages and exit 2 (ambig
+         uous lists candidates; not found; unassigned)
+       5 - [ ] FR-3 Query open items for the owner and call `compose`; ha
+       6 - [ ] FR-4 No-email policy: exit 1 unless `no_recipient`
+       7 - [ ] FR-5 Call `gateway.create_draft`; let `AppError` propagate
+       8 - [ ] FR-6 Success message (draft id/link + included items)
+      10 - [ ] FR-8 Verify store is only read and gateway only gets `crea
+         te_draft`
+     … +5 lines (ctrl+o to expand)
+
+● Write(followup_runner\test-cases.md)
+  ⎿  Wrote 22 lines to followup_runner\test-cases.md
+       1 # followup_runner — Test Cases
+       3 Seed (today 2026-10-15): Rahul (`rahul@x.com`): #1 overdue, #2 o
+         m`) each with open items. Dev Patel (no email) with an open item
+         . One unassigned open item. `FakeGateway`.
+       5 | ID | Call | Then |
+       7 | FU-T1 | `run_followup("Rahul")` | **AC-10:** exit 0; one draft
+         t; message shows draft id and items |
+       8 | FU-T2 | `run_followup("Priya")` | **AC-11:** exit 2; message l
+       9 | FU-T3 | `run_followup("Priya Nair")` | exit 0; draft only has 
+      10 | FU-T4 | `ru
+     … +29 lines (ctrl+o to expand)
+
+● Write(cli_app\spec.md)
+  ⎿  Wrote 46 lines to cli_app\spec.md
+      1 # cli_app — Spec
+      3 **Family:** `cli_` · **File:** `src/actiontrack/cli_app.py` · **D
+        epends on:** all runner modules, `core_models`, `core_store`, `fo
+        llowup_gmail_draft` (wiring only)
+      5 ## Purpose
+      6 The only entry point and the only place where concrete classes ar
+        ing, exit codes, error presentation.
+      7 
+      8 ## Requirements covered
+        FR-8, NFR-1 (console script). Smoke-level coverage of all ACs.
+     … +63 lines (ctrl+o to expand)
+
+● Write(cli_app\plan.md)
+  ⎿  Wrote 28 lines to cli_app\plan.md
+       1 # cli_app — Plan
+       3 ## Approach
+         nd, each building its collaborators and calling a module's publi
+         lls `sys.exit`.
+       6 ## Design decisions
+       7 - **`argparse` (stdlib):** four commands do not justify `click`/
+       8 - **`main` takes `env`, `stdout`, `stderr`** so tests run it in-
+       9 - **Only wiring here:** if a handler grows logic beyond "build, 
+          serves.
+         , so `ingest`/`list`/`done` work with no 
+     … +33 lines (ctrl+o to expand)
+
+● Write(cli_app\tasks.md)
+  ⎿  Wrote 13 lines to cli_app\tasks.md
+       1 # cli_app — Tasks
+       3 - [ ] CA-1 Create `pyproject.toml` (Python ≥ 3.10, dependency Py
+       4 - [ ] CA-2 Build `argparse` parser: global options + `ingest`, `
+         list`, `done`, `followup` with help text
+         default_db_path`)
+          stderr
+         ; table to stdout
+       8 - [ ] CA-6 `done` handler with exit-code mapping
+         `McpGmailGateway`), print outcome, exit code
+         ions, `-
+     … +11 lines (ctrl+o to expand)
+
+● Write(cli_app\test-cases.md)
+  ⎿  Wrote 33 lines to cli_app\test-cases.md
+       1 # cli_app — Test Cases
+       3 All tests call `main([...], env=…, stdout=…, stderr=…)` in-proce
+         ss with a temp DB and fixture notes. Gmail is `FakeGateway`/`--d
+       4 
+       6 |---|---|---|
+       7 | CA-T1 | `ingest <fixtures>` | exit 0; stdout summary with coun
+       8 | CA-T2 | `ingest` then `list` | table has `ID OWNER TASK DUE ST
+         ATUS SOURCE`; items from fixtures |
+         row count unchanged (**AC-12**) |
+         due rows (**AC-7**) |
+     … +43 lines (ctrl+o to expand)
+
+● Three consistency fixes are left: two task-ID prefixes clash with requirement
+  IDs, cli_app needs a way to inject a fake gateway for tests, and one rule in
+  track_done reads badly.
+
+● Bash(cd /c/Users/Coditas/Desktop/ai-prac-assignment/modules && sed -i -E 's/^-
+      \[ \] FR-([0-9]+)/- [ ] FUR-\1/' followup_runner/tasks.md && sed -i -E
+      's/^- \[ \] IR-…)
+  ⎿  9
+     12
+
+● Update(track_done\spec.md)
+  ⎿  Added 1 line, removed 1 line
+      21  ```
+      22  
+      23  ## Rules
+      24 -1. Unknown id → `not_found`, message `No item with id <id>`, **
+         -no change**. Caller exits 1... see mapping below.              
+      24 +1. Unknown id → `not_found`, message `No item with id <id>`, **
+         +no change**. Exit code mapping is below.                       
+      25  2. Open item → status `done`, `done_at = now`, message `Marked 
+          #<id> done: <task>`.
+      26  3. Already done → `already_done`, nothing changes (`done_at` pr
+          eserved), message `#<id> was already done`.
+      27  4. Only the database is changed. Source `.md` files are never t
+          ouched (FR-D4).
+
+● Update(cli_app\spec.md)
+  ⎿  Added 3 lines, removed 1 line
+      12  
+      13  ```python
+      14  def main(argv: Sequence[str] | None = None, env: Mapping[str, s
+          tr] = os.environ,
+      15 -         stdout: TextIO = sys.stdout, stderr: TextIO = sys.stde
+         -rr) -> int                                                     
+      15 +         stdout: TextIO = sys.stdout, stderr: TextIO = sys.stde
+         +rr,                                                            
+      16 +         gateway_factory: Callable[[], DraftGateway] = McpGmail
+         +Gateway) -> int                                                
+      17  ```
+      18 +`gateway_factory` is the test seam: tests pass `FakeGateway`. I
+         +t is called only by `followup` without `--dry-run`.            
+      19  Console script: `actiontrack = actiontrack.cli_app:main` (wrapp
+          er calls `sys.exit(main())`).
+      20  
+      21  ## Commands
+
+● Update(cli_app\spec.md)
+  ⎿  Added 1 line, removed 1 line
+      35     - `ingest` → `Store` + `run_ingest(folder, store, now)` → pr
+          int `format_report` to stdout; skipped/warning lines also to st
+          derr.
+      36     - `list` → `list_items` → on `ambiguous_owner` print candida
+          tes to stderr, exit 2; on `owner_not_found` exit 2; else print 
+          `format_table`.
+      37     - `done` → `mark_done`; print message; exit per `track_done`
+           mapping.
+      38 -   - `followup` → gateway = `DryRunGateway(stdout)` if `--dry-r
+         -un` else `McpGmailGateway()` (constructed only now) → `run_foll
+         -owup`; print message.                                          
+      38 +   - `followup` → gateway = `DryRunGateway(stdout)` if `--dry-r
+         +un` else `gateway_factory()` (constructed only now) → `run_foll
+         +owup`; print message.                                          
+      39  3. **Argument validation → exit 2:** bad `--status` value, bad 
+          date format, non-integer `<id>`, missing `<owner>`/`<folder>`. 
+          `argparse` usage text goes to stderr.
+      40  4. **Exit codes (NFR-7):** 0 success · 1 runtime error (`AppErr
+          or` with code 1, fatal IO) · 2 usage/ambiguous input.
+      41  5. **Errors:** `AppError` → `error: <message>` on stderr, exit 
+          its code. Any other exception → `error: unexpected failure (<ty
+          pe>); re-run with --verbose` and exit 1. **No traceback** unles
+          s `--verbose` (FR-E19).
+
+● Update(cli_app\test-cases.md)
+  ⎿  Added 1 line, removed 1 line
+      1  # cli_app — Test Cases
+      2  
+      3 -All tests call `main([...], env=…, stdout=…, stderr=…)` in-proce
+        -ss with a temp DB and fixture notes. Gmail is `FakeGateway`/`--d
+        -ry-run`.                                                        
+      3 +All tests call `main([...], env=…, stdout=…, stderr=…)` in-proce
+        +ss with a temp DB and fixture notes. Gmail is `FakeGateway` (pas
+        +sed as `gateway_factory`) or `--dry-run`.                       
+      4  
+      5  | ID | Command | Then |
+      6  |---|---|---|
+
+● Bash(for d in */; do echo "$d $(ls $d | tr '\n' ' ')"; done; ls | wc -l)
+  ⎿  cli_app/ plan.md spec.md tasks.md test-cases.md
+     core_models/ plan.md spec.md tasks.md test-cases.md
+     core_store/ plan.md spec.md tasks.md test-cases.md
+     … +12 lines (ctrl+o to expand)
+
+● I split requirement.md into 14 modules under modules/, each with spec.md,
+  plan.md, tasks.md and test-cases.md. That makes 56 files, plus
+  modules/README.md. I haven't written or run any code. I checked that every
+  folder has its four files, and I haven't re-read the content for errors.
+
+  Related modules share a prefix (core_, ingest_, track_, followup_), and each
+  is one file at src/actiontrack/<module>.py.
+
+  ┌───────────┬──────────────────────────────────────────────────────────────┐
+  │  Family   │                           Modules                            │
+  ├───────────┼──────────────────────────────────────────────────────────────┤
+  │ core_     │ core_models (shared types and the overdue rule), core_store  │
+  │           │ (the only code that touches SQLite)                          │
+  ├───────────┼──────────────────────────────────────────────────────────────┤
+  │ ingest_   │ ingest_note_parser, ingest_owner_resolver,                   │
+  │           │ ingest_date_resolver, ingest_dedup, ingest_runner            │
+  ├───────────┼──────────────────────────────────────────────────────────────┤
+  │ track_    │ track_owner_lookup, track_list, track_done                   │
+  ├───────────┼──────────────────────────────────────────────────────────────┤
+  │ followup_ │ followup_compose, followup_gmail_draft (the only code that   │
+  │           │ touches Gmail), followup_runner                              │
+  ├───────────┼──────────────────────────────────────────────────────────────┤
+  │ cli_      │ cli_app (the one place where everything is wired together)   │
+  └───────────┴──────────────────────────────────────────────────────────────┘
+
+  - Loose coupling:
+    - Six modules import only core_models: the note parser, owner resolver,
+      dedup, owner lookup and email composer, plus the date resolver, which
+      imports no project code. They have no database, file or clock access, so
+      each can be built and tested alone.
+    - Gmail sits behind a one-method DraftGateway protocol with no send method,
+      so swapping how it connects touches only followup_gmail_draft.
+  - Traceability: the README maps every FR/NFR/IR and every acceptance criterion
+    (AC-1 to AC-13) to a module. It also gives a dependency graph and a build
+    order. Seven modules can be built in parallel once core_models and
+    core_store exist.
+
+  Please check these four choices:
+  - PyYAML: I picked PyYAML for front matter, the project's only third-party
+    dependency. A hand-rolled parser would drop it but is riskier on quoted
+    names.
+  - Same-first-name items: an item that names only a shared first name, like
+    "Priya" when two Priyas attend, is stored unassigned and flagged. It is not
+    guessed.
+  - Gmail tool allow-list: the Gmail adapter allows exactly one connector tool
+    and refuses any tool name containing "send". A test asserts there is no send
+    path.
+  - Year-less due dates: a due date with no year, like "by 5 Jan", uses the
+    meeting's year. That is wrong for a December meeting pointing at January. I
+    flagged it in ingest_date_resolver/spec.md as a known limit.
+
+  Q-8 is still open: how the Python CLI reaches the Gmail MCP connector, and the
+  exact create-draft tool name. I made it task GD-1 (a spike) in
+  followup_gmail_draft/tasks.md. Nothing else depends on the answer.
+
+✻ Worked for 6m 56s · done 3:38 PM
